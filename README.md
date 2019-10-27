@@ -80,3 +80,6 @@ line), and ends with ‘}’.
 |  52 |**-**         | minus |
 |  53 |*         | multiply |
 |  54 |**/**         | divide |
+
+### Grammar rules for WinZig
+
