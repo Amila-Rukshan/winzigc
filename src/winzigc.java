@@ -3,7 +3,7 @@
  *
  *          compile : javac winzigc.java
  *              run : java Program
- *  compile and run : javac winzigc.java; java winzigc –ast winzig_test_programs/winzig_01
+ *  compile and run : javac winzigc.java; java winzigc -ast winzig_test_programs/winzig_01
  *
  */
 
@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 
 public class winzigc {
 
-    private static List<SyntaxToken> tokenStream = new ArrayList<SyntaxToken>();
+    private static List<SyntaxToken> tokenStream = new ArrayList<>();
 
     public static void main(String[] args) {
         String flag = args[0];
@@ -39,11 +39,14 @@ public class winzigc {
                     SyntaxToken token = lexer.findNextToken();
                     tokenStream.add(token);
                     kind = token.kind;
+//                    System.out.println(token.kind+" : "+token.position+" >"+token.text+"<");
+//                    if(token.kind == SyntaxKind.BadToken) break;
                 }
-                while(kind != SyntaxKind.EndOfProgramToken & kind != SyntaxKind.BadToken);
+                while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
                 for(SyntaxToken token: tokenStream){
-                    System.out.println(token.kind+" : "+token.position+" >"+token.text+"<");
+//                    System.out.println(token.kind+" : "+token.position+" -->"+token.text+"<--");
+                    System.out.format("%-20s%5s%s", token.kind, token.position, " -->"+token.text+"<--\n");
                 }
 
                 break;
@@ -62,9 +65,9 @@ public class winzigc {
     }
 
     private static String readWinzigProgram(String path) throws IOException {
-
+        System.out.println(new File("").getAbsolutePath()+"/"+path);
         BufferedReader reader = new BufferedReader(new FileReader(path));
-        String         line = null;
+        String         line;
         StringBuilder  stringBuilder = new StringBuilder();
         String         ls = System.getProperty("line.separator");
 
@@ -74,7 +77,7 @@ public class winzigc {
                 stringBuilder.append(ls);
             }
 
-            return stringBuilder.toString();
+            return stringBuilder.toString()+"   ";
         } finally {
             reader.close();
         }
@@ -145,21 +148,6 @@ enum SyntaxKind {
     EndOfProgramToken,
     BadToken
 
-
-//    private final Pattern pattern;
-//
-//    SyntaxKind(String regex) {
-//        pattern = Pattern.compile("^" + regex);
-//    }
-//
-//    int endOfMatch(String s) {
-//        Matcher m = pattern.matcher(s);
-//
-//        if (m.find()) {
-//            return m.end();
-//        }
-//        return -1;
-//    }
 }
 
 class SyntaxToken {
@@ -203,9 +191,23 @@ class Lexer{
         String remaining_text;
         Matcher m;
 
+        // white spaces
+        pattern = Pattern.compile("^(\\s|\\v|\\h|\\n|\\t|\\f)+");
+        remaining_text = _text.substring(_position);
+        m = pattern.matcher(remaining_text);
+
+        if(m.find()){
+            int start = _position;
+            int end = m.end();
+            _position += end;
+
+            String lexeme = remaining_text.substring(0, end);
+            return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, lexeme);
+        }
+
         // find identifiers and alphabetic syntax token
         pattern = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*");
-        remaining_text = _text.substring(_position, _text.length());
+        remaining_text = _text.substring(_position);
         m = pattern.matcher(remaining_text);
 
         if(m.find()){
@@ -252,23 +254,9 @@ class Lexer{
             }
         }
 
-        // white spaces
-        pattern = Pattern.compile("^(\\s|\\v|\\h|\\n)+");
-        remaining_text = _text.substring(_position, _text.length());
-        m = pattern.matcher(remaining_text);
-
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-
-            String lexeme = remaining_text.substring(0, end);
-            return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, lexeme);
-        }
-
         // integers
         pattern = Pattern.compile("^[\\d]+");
-        remaining_text = _text.substring(_position, _text.length());
+        remaining_text = _text.substring(_position);
         m = pattern.matcher(remaining_text);
 
         if(m.find()){
@@ -280,7 +268,137 @@ class Lexer{
             return new SyntaxToken(SyntaxKind.IntegerToken, start, lexeme);
         }
 
+        // chars
+        pattern = Pattern.compile("^'.'");
+        remaining_text = _text.substring(_position);
+        m = pattern.matcher(remaining_text);
+
+        if(m.find()){
+            int start = _position;
+            int end = m.end();
+            _position += end;
+
+            String lexeme = remaining_text.substring(0, end);
+            if(lexeme.charAt(1) == '\''){
+                return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
+            }
+            return new SyntaxToken(SyntaxKind.CharToken, start, lexeme);
+        }
+
+        // strings
+        pattern = Pattern.compile("^\"(.)+\"");
+        remaining_text = _text.substring(_position);
+        m = pattern.matcher(remaining_text);
+
+        if(m.find()){
+            int start = _position;
+            int end = m.end();
+            _position += end;
+
+            String lexeme = remaining_text.substring(0, end);
+            if(lexeme.substring(1, lexeme.length()-2).contains("\"")){
+                return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
+            }
+            return new SyntaxToken(SyntaxKind.StringToken, start, lexeme);
+        }
+
+        // comments type 1
+        pattern = Pattern.compile("^\\{(.|\n)*\\}");
+        remaining_text = _text.substring(_position);
+        m = pattern.matcher(remaining_text);
+
+        if(m.find()){
+            int start = _position;
+            int end = m.end();
+            _position += end;
+
+            String lexeme = remaining_text.substring(0, end);
+            return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
+        }
+
+        // comments type 2
+        remaining_text = _text.substring(_position);
+        pattern = Pattern.compile("^#(.)+");
+        m = pattern.matcher(remaining_text);
+
+        if(m.find()){
+            int start = _position;
+            int end = m.end();
+            _position += end;
+
+            String lexeme = remaining_text.substring(0, end);
+            return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
+        }
+
+//        // for other symbols
+//        String[] other_symbols = {":=:", ":=", "..", "<=", "<>", ">="};
+//
+//        remaining_text = _text.substring(_position);
+//        int start_pos = _position;
+//        String symbol = "$$";
+//        for(String reg : other_symbols){
+//            pattern = Pattern.compile("^"+reg);
+//            m = pattern.matcher(remaining_text);
+//            if(m.find()){
+//                start_pos = _position;
+//                int end = m.end();
+//                _position += end;
+//                symbol = remaining_text.substring(0, end);
+//                break;
+//            }
+//        }
+//
+//        switch(symbol){
+//            case ":=:": return new SyntaxToken(SyntaxKind.SwapToken, start_pos, symbol);
+//            case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, start_pos, symbol);
+//            case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, start_pos, symbol);
+//            case "<=" : return new SyntaxToken(SyntaxKind.LessOrEqualOprToken, start_pos, symbol);
+//            case "<>" : return new SyntaxToken(SyntaxKind.NotEqualOprToken, start_pos, symbol);
+//            case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, start_pos, symbol);
+//            default:
+////            default: return new SyntaxToken(SyntaxKind.BadToken, start_pos, symbol);
+//        }
+
+        // identify :=:
+        String syntax_len_3 = _text.substring(_position, _position+3);
+        if(syntax_len_3 == ":=:"){
+            return new SyntaxToken(SyntaxKind.SwapToken, _position+=3, syntax_len_3);
+        }
+
+        // length 2 syntax
+        String syntax_len_2 = _text.substring(_position, _position+2);
+
+        switch(syntax_len_2){
+            case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, _position+=2, syntax_len_2);
+            case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, _position+=2, syntax_len_2);
+            case "<=" : return new SyntaxToken(SyntaxKind.LessOrEqualOprToken, _position+=2, syntax_len_2);
+            case "<>" : return new SyntaxToken(SyntaxKind.NotEqualOprToken, _position+=2, syntax_len_2);
+            case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, _position+=2, syntax_len_2);
+        }
+
+
+        Character next = getCurrentChar();
+
+//        , ".", "<", ">", "=", ";", ",", "(", ")", "+", "-", "*", "/"
+        switch(next){
+            case ':': return new SyntaxToken(SyntaxKind.ColonToken, ++_position, next.toString());
+            case '.' : return new SyntaxToken(SyntaxKind.SingleDotToken, ++_position, next.toString());
+            case '<' : return new SyntaxToken(SyntaxKind.LessThanOprToken, ++_position, next.toString());
+            case '>' : return new SyntaxToken(SyntaxKind.GreaterThanOprToken, ++_position, next.toString());
+            case '=' : return new SyntaxToken(SyntaxKind.EqualToOprToken, ++_position, next.toString());
+            case ';' : return new SyntaxToken(SyntaxKind.SemiColonToken, ++_position, next.toString());
+            case ',' : return new SyntaxToken(SyntaxKind.CommaToken, ++_position, next.toString());
+            case '(' : return new SyntaxToken(SyntaxKind.OpenBracketToken, ++_position, next.toString());
+            case ')' : return new SyntaxToken(SyntaxKind.CloseBracketToken, ++_position, next.toString());
+            case '+' : return new SyntaxToken(SyntaxKind.PlusToken, ++_position, next.toString());
+            case '-' : return new SyntaxToken(SyntaxKind.MinusToken, ++_position, next.toString());
+            case '*' : return new SyntaxToken(SyntaxKind.MultiplyToken, ++_position, next.toString());
+            case '/' : return new SyntaxToken(SyntaxKind.DivideToken, ++_position, next.toString());
+//            default: return new SyntaxToken(SyntaxKind.BadToken, ++_position, null);
+        }
+
         return new SyntaxToken(SyntaxKind.BadToken, _position, null);
+
     }
 
 }
