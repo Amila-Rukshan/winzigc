@@ -16,7 +16,7 @@ var
     j : integer;
 begin
     if i > 0 then
-	for (j := 1; j <= i; j:=j+1) 
+	for (j := 1; j <= i; j:=j+1)
 	    if i mod j = 0 then output ( j )
 end Factor;
 

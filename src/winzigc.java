@@ -1,6 +1,6 @@
 
 /*
- *
+ *       vm options : -Xss40m
  *          compile : javac winzigc.java
  *              run : java Program
  *  compile and run : javac winzigc.java; java winzigc -ast winzig_test_programs/winzig_01
@@ -41,17 +41,12 @@ public class winzigc {
                     SyntaxToken token = lexer.findNextToken();
                     tokenStream.add(token);
                     kind = token.kind;
-//                    System.out.println(token.kind+" : "+token.position+" >"+token.text+"<");
-//                    if(token.kind == SyntaxKind.BadToken) break;
                 }
                 while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
-
                 for(SyntaxToken token: screenTokenStream()){
-//                    System.out.println(token.kind+" : "+token.position+" -->"+token.text+"<--");
-                    System.out.format("%-20s%5s%s", token.kind, token.position, " -->"+token.text+"<--\n");
+                    System.out.format("%-20s%5s%s", token.kind, token.position, " ->|"+token.text+"|<-\n");
                 }
-
                 break;
             case "-codegen":
                 break;
@@ -79,7 +74,6 @@ public class winzigc {
                 stringBuilder.append(line);
                 stringBuilder.append(ls);
             }
-
             return stringBuilder.toString()+"   ";
         } finally {
             reader.close();
@@ -89,7 +83,7 @@ public class winzigc {
     private static List<SyntaxToken> screenTokenStream(){
         List<SyntaxToken> screenedToken = new ArrayList<>();
         for(SyntaxToken token : tokenStream){
-            if(token.kind != SyntaxKind.CommentToken & token.kind != SyntaxKind.WhiteSpaceToken){
+            if(token.kind != SyntaxKind.CommentToken & token.kind != SyntaxKind.WhiteSpaceToken & token.kind != SyntaxKind.NewlineToken){
                 screenedToken.add(token);
             }
         }
@@ -181,6 +175,22 @@ class Lexer{
 
     private int _position;
 
+    private final Pattern whiteSpacesPattern;
+
+    private final Pattern newLinePattern;
+
+    private final Pattern identifiersPlusAlphaSyntaxPattern;
+
+    private final Pattern integersPattern;
+
+    private final Pattern charsPattern;
+
+    private final Pattern stringsPattern;
+
+    private final Pattern typeOneCommentsPattern;
+
+    private final Pattern typeTwoCommentsPattern;
+
     private char getCurrentChar(){
         if(_position >= _text.length())
             return '\0';
@@ -189,45 +199,30 @@ class Lexer{
 
     public Lexer(String text){
         _text = text;
-    }
-
-    private void Next(){
-        _position += 1;
+        whiteSpacesPattern = Pattern.compile("^(\\s|\\v|\\h|\\f)+");
+        newLinePattern = Pattern.compile("^[\\n]+");
+        identifiersPlusAlphaSyntaxPattern = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*");
+        integersPattern = Pattern.compile("^[\\d]+");
+        charsPattern = Pattern.compile("^'.'");
+        stringsPattern = Pattern.compile("^\"(.)+\"");
+        typeOneCommentsPattern = Pattern.compile("^\\{[\\s\\S]*}");  // [\s\S] is more efficient compared to (.|\n)
+        typeTwoCommentsPattern = Pattern.compile("^#(.)+");
     }
 
     public SyntaxToken findNextToken(){
-        if(_position >= _text.length()){
-            return new SyntaxToken(SyntaxKind.EndOfProgramToken, _position, "\0");
-        }
 
-        Pattern pattern;
-        String remaining_text;
+        // end of the program token
+        if(_position >= _text.length()){ return new SyntaxToken(SyntaxKind.EndOfProgramToken, _position, "\0");}
+
+        String remaining_text = _text.substring(_position);
         Matcher m;
 
-        // white spaces
-        pattern = Pattern.compile("^(\\s|\\v|\\h|\\n|\\t|\\f)+");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
-
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-
-            String lexeme = remaining_text.substring(0, end);
-            return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, lexeme);
-        }
-
         // find identifiers and alphabetic syntax token
-        pattern = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
-
+        m = identifiersPlusAlphaSyntaxPattern.matcher(remaining_text);
         if(m.find()){
             int start = _position;
             int end = m.end();
             _position += end;
-
             String lexeme = remaining_text.substring(0, end);
             switch(lexeme){
                 case "program": return new SyntaxToken(SyntaxKind.ProgramToken, start, lexeme);
@@ -267,30 +262,31 @@ class Lexer{
             }
         }
 
-        // integers
-        pattern = Pattern.compile("^[\\d]+");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
+        Pattern[] patterns = {integersPattern, typeOneCommentsPattern, typeTwoCommentsPattern, whiteSpacesPattern, newLinePattern};
 
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-
-            String lexeme = remaining_text.substring(0, end);
-            return new SyntaxToken(SyntaxKind.IntegerToken, start, lexeme);
+        for(int i = 0; i < patterns.length; i++){
+            m = patterns[i].matcher(remaining_text);
+            if(m.find()){
+                int start = _position;
+                int end = m.end();
+                _position += end;
+                String lexeme = remaining_text.substring(0, end);
+                switch(i){
+                    case 0: return new SyntaxToken(SyntaxKind.IntegerToken, start, lexeme);
+                    case 1: // also a type of comment
+                    case 2: return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
+                    case 3: return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, lexeme);
+                    case 4: return new SyntaxToken(SyntaxKind.NewlineToken, start, lexeme);
+                }
+            }
         }
 
         // chars
-        pattern = Pattern.compile("^'.'");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
-
+        m = charsPattern.matcher(remaining_text);
         if(m.find()){
             int start = _position;
             int end = m.end();
             _position += end;
-
             String lexeme = remaining_text.substring(0, end);
             if(lexeme.charAt(1) == '\''){
                 return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
@@ -299,15 +295,11 @@ class Lexer{
         }
 
         // strings
-        pattern = Pattern.compile("^\"(.)+\"");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
-
+        m = stringsPattern.matcher(remaining_text);
         if(m.find()){
             int start = _position;
             int end = m.end();
             _position += end;
-
             String lexeme = remaining_text.substring(0, end);
             if(lexeme.substring(1, lexeme.length()-2).contains("\"")){
                 return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
@@ -315,43 +307,15 @@ class Lexer{
             return new SyntaxToken(SyntaxKind.StringToken, start, lexeme);
         }
 
-        // comments type 1
-        pattern = Pattern.compile("^\\{(.|\n)*\\}");
-        remaining_text = _text.substring(_position);
-        m = pattern.matcher(remaining_text);
-
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-
-            String lexeme = remaining_text.substring(0, end);
-            return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
-        }
-
-        // comments type 2
-        remaining_text = _text.substring(_position);
-        pattern = Pattern.compile("^#(.)+");
-        m = pattern.matcher(remaining_text);
-
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-
-            String lexeme = remaining_text.substring(0, end);
-            return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
-        }
-
-        // identify :=:
+        // swap :=:
         String syntax_len_3 = _text.substring(_position, _position+3);
-        if(syntax_len_3 == ":=:"){
+        if(syntax_len_3.equals(":=:")){
             return new SyntaxToken(SyntaxKind.SwapToken, _position+=3, syntax_len_3);
         }
 
-        // length 2 syntax
+        // length 2 syntax tokens
+        // ":=", "..", "<=", "<>", ">="
         String syntax_len_2 = _text.substring(_position, _position+2);
-
         switch(syntax_len_2){
             case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, _position+=2, syntax_len_2);
             case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, _position+=2, syntax_len_2);
@@ -360,10 +324,8 @@ class Lexer{
             case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, _position+=2, syntax_len_2);
         }
 
-
-        Character next = getCurrentChar();
-
-//        , ".", "<", ">", "=", ";", ",", "(", ")", "+", "-", "*", "/"
+        Character next =  getCurrentChar();
+        //  ":", ".", "<", ">", "=", ";", ",", "(", ")", "+", "-", "*", "/"
         switch(next){
             case ':': return new SyntaxToken(SyntaxKind.ColonToken, ++_position, next.toString());
             case '.' : return new SyntaxToken(SyntaxKind.SingleDotToken, ++_position, next.toString());
@@ -378,15 +340,11 @@ class Lexer{
             case '-' : return new SyntaxToken(SyntaxKind.MinusToken, ++_position, next.toString());
             case '*' : return new SyntaxToken(SyntaxKind.MultiplyToken, ++_position, next.toString());
             case '/' : return new SyntaxToken(SyntaxKind.DivideToken, ++_position, next.toString());
-//            default: return new SyntaxToken(SyntaxKind.BadToken, ++_position, null);
         }
 
         return new SyntaxToken(SyntaxKind.BadToken, _position, null);
-
     }
-
 }
-
 
 
 
