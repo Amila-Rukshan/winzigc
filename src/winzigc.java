@@ -7,6 +7,8 @@
  *
  */
 
+//TODO : remove * regex to normal code to avoid MemoryOverflow
+
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +46,8 @@ public class winzigc {
                 }
                 while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
-                for(SyntaxToken token: tokenStream){
+
+                for(SyntaxToken token: screenTokenStream()){
 //                    System.out.println(token.kind+" : "+token.position+" -->"+token.text+"<--");
                     System.out.format("%-20s%5s%s", token.kind, token.position, " -->"+token.text+"<--\n");
                 }
@@ -81,6 +84,16 @@ public class winzigc {
         } finally {
             reader.close();
         }
+    }
+
+    private static List<SyntaxToken> screenTokenStream(){
+        List<SyntaxToken> screenedToken = new ArrayList<>();
+        for(SyntaxToken token : tokenStream){
+            if(token.kind != SyntaxKind.CommentToken & token.kind != SyntaxKind.WhiteSpaceToken){
+                screenedToken.add(token);
+            }
+        }
+        return screenedToken;
     }
 }
 
@@ -329,35 +342,6 @@ class Lexer{
             String lexeme = remaining_text.substring(0, end);
             return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
         }
-
-//        // for other symbols
-//        String[] other_symbols = {":=:", ":=", "..", "<=", "<>", ">="};
-//
-//        remaining_text = _text.substring(_position);
-//        int start_pos = _position;
-//        String symbol = "$$";
-//        for(String reg : other_symbols){
-//            pattern = Pattern.compile("^"+reg);
-//            m = pattern.matcher(remaining_text);
-//            if(m.find()){
-//                start_pos = _position;
-//                int end = m.end();
-//                _position += end;
-//                symbol = remaining_text.substring(0, end);
-//                break;
-//            }
-//        }
-//
-//        switch(symbol){
-//            case ":=:": return new SyntaxToken(SyntaxKind.SwapToken, start_pos, symbol);
-//            case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, start_pos, symbol);
-//            case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, start_pos, symbol);
-//            case "<=" : return new SyntaxToken(SyntaxKind.LessOrEqualOprToken, start_pos, symbol);
-//            case "<>" : return new SyntaxToken(SyntaxKind.NotEqualOprToken, start_pos, symbol);
-//            case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, start_pos, symbol);
-//            default:
-////            default: return new SyntaxToken(SyntaxKind.BadToken, start_pos, symbol);
-//        }
 
         // identify :=:
         String syntax_len_3 = _text.substring(_position, _position+3);
