@@ -154,7 +154,6 @@ ForStat    ->  Assignment
   
 ForExp     ->  Expression
            ->                                                                => "true";
-           
 
 Expression ->  Term
            ->  Term '<=' Term                                                => "<="
@@ -163,8 +162,6 @@ Expression ->  Term
            ->  Term '>' Term                                                 => ">"
            ->  Term '=' Term                                                 => "="
            ->  Term '<>' Term                                                => "<>";
-
-
 
 Term       ->  Factor
            ->  Term '+' Factor                                               => "+"
@@ -175,8 +172,7 @@ Factor     ->  Factor '*' Primary                                            => 
            ->  Factor '/' Primary                                            => "/"
            ->  Factor 'and' Primary                                          => "and"
            ->  Factor 'mod' Primary                                          => "mod"
-           ->  Primary;
-           
+           ->  Primary;  
   
 Primary    ->  '-' Primary                                                   => "-"
            ->  '+' Primary                                                   
@@ -193,32 +189,5 @@ Primary    ->  '-' Primary                                                   => 
            ->  'ord' '(' Expression ')'                                      => "ord";
   
 Name       ->  '<identifier>';
-  
-
-
-
-
-
-
-
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
  
 </pre>
