@@ -91,8 +91,8 @@ Consts     ->  'const' Const list ',' ';'                                    => 
  
 Const      ->  Name '=' ConstValue                                           => "const"; 
 
-ConstValue ->  '<integer>'
-           ->  '<char>'
+ConstValue ->  '&#x1438;integer&#x1433;'  
+           ->  '&#x1438;char&#x1433;'
            ->  Name;
 
 Types      ->  'type' (Type ';')+                                            => "types"
@@ -128,12 +128,12 @@ Statement  ->  Assignment
            ->  'exit'                                                        => "exit"
            ->  'return' Expression                                           => "return"
            ->  Body
-           ->                                                                => "<null>";
+           ->                                                                => "&#x1438;null&#x1433;"; 
   
 OutExp     ->  Expression                                                    => "integer"
            ->  StringNode                                                    => "string";
           
-StringNode ->  '<string>';
+StringNode ->  '&#x1438;string&#x1433;'; 
   
 Caseclauses->  (Caseclause ';')+;
  
@@ -150,7 +150,7 @@ OtherwiseClause
 Assignment ->  Name ':=' Expression                                          => "assign"
            ->  Name ':=:' Name                                               => "swap";                                          
 ForStat    ->  Assignment
-           ->                                                                => "<null>";
+           ->                                                                => "&#x1438;null&#x1433;"; 
   
 ForExp     ->  Expression
            ->                                                                => "true";
@@ -179,8 +179,8 @@ Primary    ->  '-' Primary                                                   => 
            ->  'not' Primary                                                 => "not"
            ->  'eof'
            ->  Name 
-           ->  '<integer>'
-           ->  '<char>'
+           ->  '&#x1438;integer&#x1433;' 
+           ->  '&#x1438;char&#x1433;'
            ->  Name '(' Expression list ',' ')'                              => "call"      
            ->  '(' Expression ')'
            ->  'succ' '(' Expression ')'                                     => "succ"
@@ -188,6 +188,6 @@ Primary    ->  '-' Primary                                                   => 
            ->  'chr' '(' Expression ')'                                      => "chr"
            ->  'ord' '(' Expression ')'                                      => "ord";
   
-Name       ->  '<identifier>';
+Name       ->  '&#x1438;identifier&#x1433;'; 
  
 </pre>
