@@ -2,13 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7ba9bbf3-2b81-4b6b-824b-51a60fef9908" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/SyntaxKind.class" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/SyntaxToken.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Lexer.class" beforeDir="false" afterPath="$PROJECT_DIR$/src/Lexer.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/winzig_test_programs/winzig_01" beforeDir="false" afterPath="$PROJECT_DIR$/src/winzig_test_programs/winzig_01" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/winzigc.class" beforeDir="false" afterPath="$PROJECT_DIR$/src/winzigc.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/winzigc.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/winzigc.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/winzigc/Lexer.class" beforeDir="false" afterPath="$PROJECT_DIR$/out/production/winzigc/Lexer.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/out/production/winzigc/winzigc.class" beforeDir="false" afterPath="$PROJECT_DIR$/out/production/winzigc/winzigc.class" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -74,6 +70,9 @@
       <option name="presentableId" value="Default" />
       <updated>1572165482632</updated>
       <workItem from="1572165488312" duration="26454000" />
+      <workItem from="1572594577174" duration="7000" />
+      <workItem from="1572594622388" duration="2600000" />
+      <workItem from="1572619990336" duration="209000" />
     </task>
     <servers />
   </component>
@@ -85,7 +84,9 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="COLUMN_ORDER" />
+            </State>
           </value>
         </entry>
       </map>
