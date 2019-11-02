@@ -429,16 +429,98 @@ class Lexer{
     }
 }
 
+// to represent nodes in ABS
+class ASTNode{
+
+    private String node_label;
+    private List<ASTNode> childNodes;
+
+    private ASTNode parent;
+
+    ASTNode(String node_label, SyntaxToken syntaxToken){
+        this.childNodes = new ArrayList<>();
+    }
+
+    public List<ASTNode> getChildNodes() {
+        return childNodes;
+    }
+
+    public void setParentNode(ASTNode parent){
+        this.parent = parent;
+    }
+
+    public void addChildNode(ASTNode child){
+        this.childNodes.add(child);
+        child.setParentNode(this);
+    }
+
+    public ASTNode getParent(){
+        return parent;
+    }
+
+    public boolean isLeafNode(){
+        return this.childNodes.size() == 0;
+    }
+
+    // Do a Depth First Traverse to print all the nodes
+    public void DFTraverse(int depth){
+        for(int i = 0 ; i < depth; i++ ) System.out.print(". ");
+        System.out.println("("+ this.childNodes.size() +")");
+        if(!isLeafNode()){
+            for(ASTNode node: childNodes){
+                node.DFTraverse(depth+1);
+            }
+        }
+    }
+
+}
+
+// this is to hold the tree root
+class ASTree{
+    private ASTNode rootNode;
+
+    ASTree(ASTNode root){
+        rootNode = root;
+    }
+
+    public ASTNode getRootNode(){
+        return rootNode;
+    }
+
+    public void TraverseFromTheRoot(){
+        rootNode.DFTraverse(0);
+    }
+}
+
 class Parser{
 
-    List<SyntaxToken> tokenStream;
+    private List<SyntaxToken> tokenStream;
+
+    private int tokenIndex;
+
+    SyntaxToken nextToken;
 
     Parser(List<SyntaxToken> tokenStream){
         this.tokenStream = tokenStream;
     }
 
+    // set the next token and increment the index
+    public void getNextToken(){
+        nextToken = tokenStream.get(tokenIndex);
+        tokenIndex++;
+    }
+
+    // look what's the next token without incrementing the token index
+    public SyntaxToken peekToken(){
+        return tokenStream.get(tokenIndex);
+    }
+
+
+
+
 
 }
+
 
 
 
