@@ -4,16 +4,12 @@
  *          compile : javac winzigc.java
  *              run : java Program
  *  compile and run : javac winzigc.java; java winzigc -ast winzig_test_programs/winzig_01
- *
+ *         test all : javac winzigc.java; java winzigc -test
  */
-
-//TODO : remove * regex to normal code to avoid MemoryOverflow
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class winzigc {
 
@@ -45,10 +41,38 @@ public class winzigc {
                 while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
                 for(SyntaxToken token: screenTokenStream()){
-                    System.out.format("%-20s%5s%s", token.kind, token.position, " ->|"+token.text+"|<-\n");
+                    System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
                 }
+
                 break;
-            case "-codegen":
+            case "-test":
+                for(int i = 1; i <= 25; i++){
+                    String path =  String.format("winzig_test_programs/winzig_%02d" , i);
+                    System.out.println("================================= "+ path+" ===========================================");
+                    // call lexer and parser
+
+                    String program_string = null;
+                    try {
+                        program_string = readWinzigProgram(path);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    Lexer lex = new Lexer(program_string);
+
+                    SyntaxKind k;
+                    do{
+                        SyntaxToken token = lex.findNextToken();
+                        tokenStream.add(token);
+                        k = token.kind;
+                    }
+                    while(k != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
+
+                    for(SyntaxToken token: screenTokenStream()){
+                        System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
+                    }
+                    tokenStream = new ArrayList<>();
+                }
                 break;
             case  "-h":
                 System.out.println("run command: java winzigc [stage] [path]");
@@ -83,7 +107,7 @@ public class winzigc {
     private static List<SyntaxToken> screenTokenStream(){
         List<SyntaxToken> screenedToken = new ArrayList<>();
         for(SyntaxToken token : tokenStream){
-            if(token.kind != SyntaxKind.CommentToken & token.kind != SyntaxKind.WhiteSpaceToken & token.kind != SyntaxKind.NewlineToken){
+            if(token.kind != SyntaxKind.CommentToken & token.kind != SyntaxKind.WhiteSpaceToken & token.kind != SyntaxKind.NewlineToken & token.kind != SyntaxKind.EndOfProgramToken){
                 screenedToken.add(token);
             }
         }
@@ -161,11 +185,13 @@ class SyntaxToken {
     SyntaxKind kind;
     int position;
     String text;
+    String type;
 
-    public SyntaxToken(SyntaxKind kind, int position, String text){
+    public SyntaxToken(SyntaxKind kind, int position, String text, String type){
         this.kind = kind;
         this.position = position;
         this.text = text;
+        this.type = type;
     }
 }
 
@@ -175,22 +201,6 @@ class Lexer{
 
     private int _position;
 
-    private final Pattern whiteSpacesPattern;
-
-    private final Pattern newLinePattern;
-
-    private final Pattern identifiersPlusAlphaSyntaxPattern;
-
-    private final Pattern integersPattern;
-
-    private final Pattern charsPattern;
-
-    private final Pattern stringsPattern;
-
-    private final Pattern typeOneCommentsPattern;
-
-    private final Pattern typeTwoCommentsPattern;
-
     private char getCurrentChar(){
         if(_position >= _text.length())
             return '\0';
@@ -199,151 +209,235 @@ class Lexer{
 
     public Lexer(String text){
         _text = text;
-        whiteSpacesPattern = Pattern.compile("^(\\s|\\v|\\h|\\f)+");
-        newLinePattern = Pattern.compile("^[\\n]+");
-        identifiersPlusAlphaSyntaxPattern = Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*");
-        integersPattern = Pattern.compile("^[\\d]+");
-        charsPattern = Pattern.compile("^'.'");
-        stringsPattern = Pattern.compile("^\"(.)+\"");
-        typeOneCommentsPattern = Pattern.compile("^\\{[\\s\\S]*}");  // [\s\S] is more efficient compared to (.|\n)
-        typeTwoCommentsPattern = Pattern.compile("^#(.)+");
+    }
+
+    String findIdentifiersAndSyntax(){
+        String identiferChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+        int start = _position;
+        if(identiferChars.indexOf(getCurrentChar()) >= 9){
+            _position++;
+            while(identiferChars.indexOf(getCurrentChar()) >= 0){
+                _position++;
+            }
+            return _text.substring(start, _position);
+        }
+        return null;
+    }
+
+    SyntaxToken findCommentTypeOne(){
+        int start = _position;
+        if(getCurrentChar() == '{'){
+            _position++;
+            while(getCurrentChar() != '}'){
+                _position++;
+            }
+            _position++;
+            return new SyntaxToken(SyntaxKind.CommentToken, start, _text.substring(start, _position), "#COMMENT");
+        }
+        return null;
+    }
+
+    SyntaxToken findCommentTypeTwo(){
+        int start = _position;
+        if(getCurrentChar() == '#'){
+            _position++;
+            while(getCurrentChar() != '\n'){
+                _position++;
+            }
+            return new SyntaxToken(SyntaxKind.CommentToken, start, _text.substring(start, _position), "#COMMENT");
+        }
+        return null;
+    }
+
+    SyntaxToken findNewLine(){
+        int start = _position;
+        if(getCurrentChar() == '\n'){
+            _position++;
+            return new SyntaxToken(SyntaxKind.NewlineToken, start, "\n", "NEWLINE");
+        }
+        return null;
+    }
+
+    SyntaxToken findWhiteSpace(){
+        char[] spaceChars = { ' ', '\f', '\r', '\t' };
+        int start = _position;
+        if (charIsInArray(getCurrentChar(), spaceChars)) {
+            _position++;
+            while (charIsInArray(getCurrentChar(), spaceChars)){
+                _position++;
+            }
+            return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, _text.substring(start, _position), "WHITESPACE");
+        }
+        return null;
+    }
+
+    SyntaxToken findInteger(){
+        char[] intChars = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+        int start  = _position;
+        if (charIsInArray(getCurrentChar(), intChars)) {
+            _position++;
+            while (charIsInArray(getCurrentChar(), intChars)){
+                _position++;
+            }
+            return new SyntaxToken(SyntaxKind.IntegerToken, start, _text.substring(start, _position), "<integer>");
+        }
+        return null;
+    }
+
+    SyntaxToken findChars(){
+        int start = _position;
+        if(getCurrentChar() == '\'' & _text.charAt(_position+2 ) == '\'' & _text.charAt(_position+1 ) != '\''){
+            _position += 3;
+            return new SyntaxToken(SyntaxKind.CharToken, start, _text.substring(start, _position), "<char>");
+        }
+        return  null;
+    }
+
+    SyntaxToken findStrings(){
+        int start = _position;
+        if(getCurrentChar() == '"'){
+            _position++;
+            while(getCurrentChar() != '"'){
+                _position++;
+            }
+            _position++;
+            return new SyntaxToken(SyntaxKind.StringToken, start, _text.substring(start, _position), "<string>");
+        }
+        return null;
+    }
+
+    boolean charIsInArray(char c, char[] charArray){
+        for(char spaceChar : charArray){
+            if(spaceChar == c){
+                return true;
+            }
+        }
+        return false;
     }
 
     public SyntaxToken findNextToken(){
 
         // end of the program token
-        if(_position >= _text.length()){ return new SyntaxToken(SyntaxKind.EndOfProgramToken, _position, "\0");}
-
-        String remaining_text = _text.substring(_position);
-        Matcher m;
+        if(_position >= _text.length()){ return new SyntaxToken(SyntaxKind.EndOfProgramToken, _position, "\0", null);}
 
         // find identifiers and alphabetic syntax token
-        m = identifiersPlusAlphaSyntaxPattern.matcher(remaining_text);
-        if(m.find()){
+        String lexeme = findIdentifiersAndSyntax();
+        if(lexeme != null){
             int start = _position;
-            int end = m.end();
-            _position += end;
-            String lexeme = remaining_text.substring(0, end);
             switch(lexeme){
-                case "program": return new SyntaxToken(SyntaxKind.ProgramToken, start, lexeme);
-                case "var": return new SyntaxToken(SyntaxKind.VarToken, start, lexeme);
-                case "const": return new SyntaxToken(SyntaxKind.ConstToken, start, lexeme);
-                case "type": return new SyntaxToken(SyntaxKind.TypeToken, start, lexeme);
-                case "function": return new SyntaxToken(SyntaxKind.FunctionToken, start, lexeme);
-                case "return": return new SyntaxToken(SyntaxKind.ReturnToken, start, lexeme);
-                case "begin": return new SyntaxToken(SyntaxKind.BeginToken, start, lexeme);
-                case "end": return new SyntaxToken(SyntaxKind.EndToken, start, lexeme);
-                case "output": return new SyntaxToken(SyntaxKind.OutputToken, start, lexeme);
-                case "if": return new SyntaxToken(SyntaxKind.IfToken, start, lexeme);
-                case "then": return new SyntaxToken(SyntaxKind.ThenToken, start, lexeme);
-                case "else": return new SyntaxToken(SyntaxKind.ElseToken, start, lexeme);
-                case "while": return new SyntaxToken(SyntaxKind.WhileToken, start, lexeme);
-                case "do": return new SyntaxToken(SyntaxKind.DoToken, start, lexeme);
-                case "case": return new SyntaxToken(SyntaxKind.CaseToken, start, lexeme);
-                case "of": return new SyntaxToken(SyntaxKind.OfToken, start, lexeme);
-                case "otherwise": return new SyntaxToken(SyntaxKind.OtherwiseToken, start, lexeme);
-                case "repeat": return new SyntaxToken(SyntaxKind.RepeatToken, start, lexeme);
-                case "for": return new SyntaxToken(SyntaxKind.ForToken, start, lexeme);
-                case "until": return new SyntaxToken(SyntaxKind.UntilToken, start, lexeme);
-                case "loop": return new SyntaxToken(SyntaxKind.LoopToken, start, lexeme);
-                case "pool": return new SyntaxToken(SyntaxKind.PoolToken, start, lexeme);
-                case "exit": return new SyntaxToken(SyntaxKind.ExitToken, start, lexeme);
-                case "mod": return new SyntaxToken(SyntaxKind.ModulusOprToken, start, lexeme);
-                case "or": return new SyntaxToken(SyntaxKind.OrOprToken, start, lexeme);
-                case "and": return new SyntaxToken(SyntaxKind.AndOprToken, start, lexeme);
-                case "not": return new SyntaxToken(SyntaxKind.NotOprToken, start, lexeme);
-                case "read": return new SyntaxToken(SyntaxKind.ReadToken, start, lexeme);
-                case "succ": return new SyntaxToken(SyntaxKind.SuccessorToken, start, lexeme);
-                case "pred": return new SyntaxToken(SyntaxKind.PredecessorToken, start, lexeme);
-                case "chr": return new SyntaxToken(SyntaxKind.CharFuncToken, start, lexeme);
-                case "ord": return new SyntaxToken(SyntaxKind.OrdinalFuncToken, start, lexeme);
-                case "eof": return new SyntaxToken(SyntaxKind.EndOfFileToken, start, lexeme);
-                default: return new SyntaxToken(SyntaxKind.IdentifierToken, start, lexeme);
+                case "program": return new SyntaxToken(SyntaxKind.ProgramToken, start, lexeme, "program");
+                case "var": return new SyntaxToken(SyntaxKind.VarToken, start, lexeme, "var");
+                case "const": return new SyntaxToken(SyntaxKind.ConstToken, start, lexeme, "const");
+                case "type": return new SyntaxToken(SyntaxKind.TypeToken, start, lexeme,"type");
+                case "function": return new SyntaxToken(SyntaxKind.FunctionToken, start, lexeme,"function");
+                case "return": return new SyntaxToken(SyntaxKind.ReturnToken, start, lexeme,"return");
+                case "begin": return new SyntaxToken(SyntaxKind.BeginToken, start, lexeme, "begin");
+                case "end": return new SyntaxToken(SyntaxKind.EndToken, start, lexeme, "end");
+                case "output": return new SyntaxToken(SyntaxKind.OutputToken, start, lexeme,"output");
+                case "if": return new SyntaxToken(SyntaxKind.IfToken, start, lexeme, "if");
+                case "then": return new SyntaxToken(SyntaxKind.ThenToken, start, lexeme,"then");
+                case "else": return new SyntaxToken(SyntaxKind.ElseToken, start, lexeme,"else");
+                case "while": return new SyntaxToken(SyntaxKind.WhileToken, start, lexeme,"while");
+                case "do": return new SyntaxToken(SyntaxKind.DoToken, start, lexeme,"do");
+                case "case": return new SyntaxToken(SyntaxKind.CaseToken, start, lexeme,"case");
+                case "of": return new SyntaxToken(SyntaxKind.OfToken, start, lexeme,"of");
+                case "otherwise": return new SyntaxToken(SyntaxKind.OtherwiseToken, start, lexeme,"otherwise");
+                case "repeat": return new SyntaxToken(SyntaxKind.RepeatToken, start, lexeme,"repeat");
+                case "for": return new SyntaxToken(SyntaxKind.ForToken, start, lexeme,"for");
+                case "until": return new SyntaxToken(SyntaxKind.UntilToken, start, lexeme,"until");
+                case "loop": return new SyntaxToken(SyntaxKind.LoopToken, start, lexeme,"loop");
+                case "pool": return new SyntaxToken(SyntaxKind.PoolToken, start, lexeme,"pool");
+                case "exit": return new SyntaxToken(SyntaxKind.ExitToken, start, lexeme,"exit");
+                case "mod": return new SyntaxToken(SyntaxKind.ModulusOprToken, start, lexeme,"mod");
+                case "or": return new SyntaxToken(SyntaxKind.OrOprToken, start, lexeme,"or");
+                case "and": return new SyntaxToken(SyntaxKind.AndOprToken, start, lexeme,"and");
+                case "not": return new SyntaxToken(SyntaxKind.NotOprToken, start, lexeme,"not");
+                case "read": return new SyntaxToken(SyntaxKind.ReadToken, start, lexeme,"read");
+                case "succ": return new SyntaxToken(SyntaxKind.SuccessorToken, start, lexeme,"succ");
+                case "pred": return new SyntaxToken(SyntaxKind.PredecessorToken, start, lexeme,"pred");
+                case "chr": return new SyntaxToken(SyntaxKind.CharFuncToken, start, lexeme,"chr");
+                case "ord": return new SyntaxToken(SyntaxKind.OrdinalFuncToken, start, lexeme,"ord");
+                case "eof": return new SyntaxToken(SyntaxKind.EndOfFileToken, start, lexeme,"eof");
+                default: return new SyntaxToken(SyntaxKind.IdentifierToken, start, lexeme, "<identifier>");
             }
         }
 
-        Pattern[] patterns = {integersPattern, typeOneCommentsPattern, typeTwoCommentsPattern, whiteSpacesPattern, newLinePattern};
+        // comment type 1
+        SyntaxToken commentTypeOne = findCommentTypeOne();
+        if(commentTypeOne != null){ return commentTypeOne; }
 
-        for(int i = 0; i < patterns.length; i++){
-            m = patterns[i].matcher(remaining_text);
-            if(m.find()){
-                int start = _position;
-                int end = m.end();
-                _position += end;
-                String lexeme = remaining_text.substring(0, end);
-                switch(i){
-                    case 0: return new SyntaxToken(SyntaxKind.IntegerToken, start, lexeme);
-                    case 1: // also a type of comment
-                    case 2: return new SyntaxToken(SyntaxKind.CommentToken, start, lexeme);
-                    case 3: return new SyntaxToken(SyntaxKind.WhiteSpaceToken, start, lexeme);
-                    case 4: return new SyntaxToken(SyntaxKind.NewlineToken, start, lexeme);
-                }
-            }
-        }
+        // comment type 2
+        SyntaxToken commentTypeTwo = findCommentTypeTwo();
+        if(commentTypeTwo != null){ return commentTypeTwo; }
+
+        // new line
+        SyntaxToken newLine = findNewLine();
+        if(newLine != null){ return newLine; }
+
+        // white spaces
+        SyntaxToken whiteSpace = findWhiteSpace();
+        if(whiteSpace != null){ return whiteSpace; }
+
+        // integers
+        SyntaxToken integers = findInteger();
+        if(integers != null){ return integers; }
 
         // chars
-        m = charsPattern.matcher(remaining_text);
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-            String lexeme = remaining_text.substring(0, end);
-            if(lexeme.charAt(1) == '\''){
-                return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
-            }
-            return new SyntaxToken(SyntaxKind.CharToken, start, lexeme);
-        }
+        SyntaxToken chars = findChars();
+        if(chars != null){ return chars; }
 
         // strings
-        m = stringsPattern.matcher(remaining_text);
-        if(m.find()){
-            int start = _position;
-            int end = m.end();
-            _position += end;
-            String lexeme = remaining_text.substring(0, end);
-            if(lexeme.substring(1, lexeme.length()-2).contains("\"")){
-                return new SyntaxToken(SyntaxKind.BadToken, start, lexeme);
-            }
-            return new SyntaxToken(SyntaxKind.StringToken, start, lexeme);
-        }
+        SyntaxToken strings = findStrings();
+        if(strings != null){ return strings; }
 
         // swap :=:
         String syntax_len_3 = _text.substring(_position, _position+3);
         if(syntax_len_3.equals(":=:")){
-            return new SyntaxToken(SyntaxKind.SwapToken, _position+=3, syntax_len_3);
+            return new SyntaxToken(SyntaxKind.SwapToken, _position+=3, syntax_len_3, ":=:");
         }
 
         // length 2 syntax tokens
         // ":=", "..", "<=", "<>", ">="
         String syntax_len_2 = _text.substring(_position, _position+2);
         switch(syntax_len_2){
-            case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, _position+=2, syntax_len_2);
-            case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, _position+=2, syntax_len_2);
-            case "<=" : return new SyntaxToken(SyntaxKind.LessOrEqualOprToken, _position+=2, syntax_len_2);
-            case "<>" : return new SyntaxToken(SyntaxKind.NotEqualOprToken, _position+=2, syntax_len_2);
-            case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, _position+=2, syntax_len_2);
+            case ":=" : return new SyntaxToken(SyntaxKind.AssignToken, _position+=2, syntax_len_2, ":=");
+            case ".." : return new SyntaxToken(SyntaxKind.CaseExpToken, _position+=2, syntax_len_2, "..");
+            case "<=" : return new SyntaxToken(SyntaxKind.LessOrEqualOprToken, _position+=2, syntax_len_2, "<=");
+            case "<>" : return new SyntaxToken(SyntaxKind.NotEqualOprToken, _position+=2, syntax_len_2,"<>");
+            case ">=" : return new SyntaxToken(SyntaxKind.GreaterOrEqualOprToken, _position+=2, syntax_len_2,">=");
         }
 
         Character next =  getCurrentChar();
         //  ":", ".", "<", ">", "=", ";", ",", "(", ")", "+", "-", "*", "/"
         switch(next){
-            case ':': return new SyntaxToken(SyntaxKind.ColonToken, ++_position, next.toString());
-            case '.' : return new SyntaxToken(SyntaxKind.SingleDotToken, ++_position, next.toString());
-            case '<' : return new SyntaxToken(SyntaxKind.LessThanOprToken, ++_position, next.toString());
-            case '>' : return new SyntaxToken(SyntaxKind.GreaterThanOprToken, ++_position, next.toString());
-            case '=' : return new SyntaxToken(SyntaxKind.EqualToOprToken, ++_position, next.toString());
-            case ';' : return new SyntaxToken(SyntaxKind.SemiColonToken, ++_position, next.toString());
-            case ',' : return new SyntaxToken(SyntaxKind.CommaToken, ++_position, next.toString());
-            case '(' : return new SyntaxToken(SyntaxKind.OpenBracketToken, ++_position, next.toString());
-            case ')' : return new SyntaxToken(SyntaxKind.CloseBracketToken, ++_position, next.toString());
-            case '+' : return new SyntaxToken(SyntaxKind.PlusToken, ++_position, next.toString());
-            case '-' : return new SyntaxToken(SyntaxKind.MinusToken, ++_position, next.toString());
-            case '*' : return new SyntaxToken(SyntaxKind.MultiplyToken, ++_position, next.toString());
-            case '/' : return new SyntaxToken(SyntaxKind.DivideToken, ++_position, next.toString());
+            case ':': return new SyntaxToken(SyntaxKind.ColonToken, ++_position, next.toString(),":");
+            case '.' : return new SyntaxToken(SyntaxKind.SingleDotToken, ++_position, next.toString(),".");
+            case '<' : return new SyntaxToken(SyntaxKind.LessThanOprToken, ++_position, next.toString(),"<");
+            case '>' : return new SyntaxToken(SyntaxKind.GreaterThanOprToken, ++_position, next.toString(),">");
+            case '=' : return new SyntaxToken(SyntaxKind.EqualToOprToken, ++_position, next.toString(),"=");
+            case ';' : return new SyntaxToken(SyntaxKind.SemiColonToken, ++_position, next.toString(),";");
+            case ',' : return new SyntaxToken(SyntaxKind.CommaToken, ++_position, next.toString(),",");
+            case '(' : return new SyntaxToken(SyntaxKind.OpenBracketToken, ++_position, next.toString(),"(");
+            case ')' : return new SyntaxToken(SyntaxKind.CloseBracketToken, ++_position, next.toString(),")");
+            case '+' : return new SyntaxToken(SyntaxKind.PlusToken, ++_position, next.toString(),"+");
+            case '-' : return new SyntaxToken(SyntaxKind.MinusToken, ++_position, next.toString(),"-");
+            case '*' : return new SyntaxToken(SyntaxKind.MultiplyToken, ++_position, next.toString(),"*");
+            case '/' : return new SyntaxToken(SyntaxKind.DivideToken, ++_position, next.toString(),"/");
         }
 
-        return new SyntaxToken(SyntaxKind.BadToken, _position, null);
+        return new SyntaxToken(SyntaxKind.BadToken, _position, null,"UNKNOWN_TOKEN");
     }
+}
+
+class Parser{
+
+    List<SyntaxToken> tokenStream;
+
+    Parser(List<SyntaxToken> tokenStream){
+        this.tokenStream = tokenStream;
+    }
+
+
 }
 
 
