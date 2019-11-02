@@ -191,3 +191,60 @@ Primary    ->  '-' Primary                                                   => 
 Name       ->  '&#x1438;identifier&#x1433;'; 
  
 </pre>
+
+
+####  Infix, binary regular expression operators
+
+<pre>
+ +   :   (meaning one or more).  This is a unary, postfix regular expression
+    
+          operator.   It is used in the production rule
+          Types      -> 'type' (Type ';')+
+    
+          It means "the keyword 'type', followed by one or more instances of (Type ';')"
+    
+          It does not mean "the keyword 'type', followed by (Type ';'), followed by +  "
+    
+          Note that the +  is not enclosed in single quotes, meaning it is not a terminal
+          symbol in the grammar.   There are instances of + that are enclosed in single
+          quotes, i.e. those *are* terminals.
+
+*    :   (meaning zero or more).  This is a unary, postfix regular expression operator.
+    
+          It is used in the production rule
+    
+          SubProgs   -> Fcn*
+          It means "zero or more instances of Fcn"
+    
+          It does not mean "Fcn followed by * " 
+          Note that the *  is not enclosed in single quotes, meaning it is not a terminal
+          symbol in the grammar.  There are instances of * that are enclosed in single
+          quotes, i.e. those *are* terminals.
+
+?    :    (meaning zero or one, i.e. optional).  This is a unary, postfix regular expression operator.
+    
+          It is used in the production rule 
+    
+          Statement ->  'if' Expression 'then' Statement ('else' Statement)?    
+    
+          It means "the phrase ('else' Statement)  is optional"
+    
+          It does not mean "('else' Statement) followed by ? " 
+          Note that the ?  is not enclosed in single quotes, meaning it is not a terminal
+           symbol in the grammar.  There are no instances of ? that are enclosed in single
+    ​       quotes, i.e.  ? is not keyword in the Tiny language.
+
+list :    (meaning a list of items, with separators).  This a binary, infix regular expression operator.
+          It is used in several places in the grammar, for example ​
+          Statement list ';'
+          It means "a list of Statement's, separated by ';'s  "
+          It does not mean "a Statement, followed by a list, followed by a ';'  " 
+          The definition:   a list b   =  a (b a)*, so
+          Statement list ';'    =   Statement (';'  Statement)*
+          This means "a Statement, and then zero or more instances of (';' Statement)"
+          This exactly what it means to have a list of Statements, separated by ';'s, i.e.
+          the list must begin with a Statement, must end with a Statement, and between every
+          two Statement's there is a ';' separating them.
+
+</pre>
+
