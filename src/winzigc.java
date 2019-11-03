@@ -8,6 +8,7 @@
  */
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -537,6 +538,8 @@ class Parser{
         consume(":");
         Consts(rootNode);
         Types(rootNode);
+        Dclns(rootNode);
+        SubProgs(rootNode);
 
         System.out.println(nextToken.type);
 
@@ -571,19 +574,146 @@ class Parser{
 
     void ConstValue(ASTNode parent){
         // skip <char> or <integer> but create a node for <identifier>
+        if(nextToken.type.equals("<char>") || nextToken.type.equals("<integer>") ){
+            consume(nextToken.type);
+        }
+
         if(nextToken.type == "<identifier>"){
             Name(parent);
         }
     }
 
     void Types(ASTNode parent){
-        consume("type");
-        ASTNode typesNode = addASTNode(parent, "types");
+        if(nextToken.type == "type"){
+            ASTNode typesNode = addASTNode(parent, "types");
+            consume("type");
 
+            while(nextToken.type == "<identifier>"){
+                Type(typesNode);
+                consume(";");
+            }
+
+        }else{
+            ASTNode typesNode = addASTNode(parent, "types");
+        }
 
     }
 
-    void Type(){
+    void Type(ASTNode parent){
+        ASTNode typeNode = new ASTNode("type");
+        parent.addChildNode(typeNode);
+
+        if(nextToken.type == "<identifier>"){
+            consume(SyntaxKind.IdentifierToken, typeNode);
+            consume("=");
+            LitList(typeNode);
+        }
+    }
+
+    void LitList(ASTNode parent){
+        ASTNode litNode = new ASTNode("lit");
+        parent.addChildNode(litNode);
+
+        consume("(");
+        Name(litNode);
+        while(nextToken.type != ")"){
+            consume(",");
+            Name(litNode);
+        }
+        consume(")");
+    }
+
+    void Dclns(ASTNode parent){
+        if(nextToken.type == "var"){
+            ASTNode dclnsNode = addASTNode(parent, "dclns");
+            consume("var");
+            Dcln(dclnsNode);
+            consume(";");
+            while(nextToken.type == "<identifier>"){
+                Dcln(dclnsNode);
+                consume(";");
+            }
+        }else{
+            addASTNode(parent, "dclns");
+        }
+    }
+
+    void Dcln(ASTNode parent){
+        ASTNode varNode = addASTNode(parent, "var");
+        Name(varNode);
+        while(nextToken.type != ":"){
+            consume(",");
+            Name(varNode);
+        }
+        consume(":");
+        Name(varNode);
+    }
+
+    void SubProgs(ASTNode parent){
+        ASTNode subprogsNode = addASTNode(parent, "subprogs");
+        while(nextToken.kind == SyntaxKind.FunctionToken){
+            Fcn(subprogsNode);
+        }
+    }
+
+    void Fcn(ASTNode parent){
+        ASTNode fcnNode = addASTNode(parent, "fcn");
+        consume("function");
+        Name(fcnNode);
+        consume("(");
+        Params(fcnNode);
+        consume(")");
+        consume(":");
+        Name(fcnNode);
+        consume(";");
+        Consts(fcnNode);
+        Types(fcnNode);
+        Dclns(fcnNode);
+        Body(fcnNode);
+
+    }
+
+    void Params(ASTNode parent){
+        ASTNode paramsNode = addASTNode(parent, "params");
+        Dcln(paramsNode);
+        while(nextToken.type == ";"){
+            consume(";");
+            Dcln(paramsNode);
+        }
+    }
+
+    void Body(ASTNode parent){
+        ASTNode blockNode = addASTNode(parent, "block");
+        consume("begin");
+        Statement(blockNode);
+//        while(nextToken.type == ";"){
+//            consume(";");
+//            Statement(blockNode);
+//        }
+//        consume("end");
+    }
+
+    void Statement(ASTNode parent){
+        if(nextToken.type == "if"){
+            ASTNode statementNode = addASTNode(parent, "if");
+            Expression(statementNode);
+
+        }
+    }
+
+    void Expression(ASTNode parent){
+
+    }
+
+    void Term(ASTNode parent){
+
+    }
+
+    void Factor(ASTNode parent){
+
+    }
+
+    void Primary(ASTNode parent){
 
     }
 
@@ -596,7 +726,8 @@ class Parser{
 
     void consume(String type){
         if(nextToken.type != type){
-            System.out.println("ERROR WHILE PARSING : ->|"+type+"|<-");
+            System.out.println("EXPECTED: ->|"+type+"|<-");
+            System.out.println("FOUND: "+nextToken.type);
             throw new Error();
         }
 

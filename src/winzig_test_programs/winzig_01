@@ -8,7 +8,7 @@
 }
 program factors:
 
-{ const A = a, B = b; }
+{ const A = a, B = 456, C = 'd'; }
 
 var
     i : integer;
