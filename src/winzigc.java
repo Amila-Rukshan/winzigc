@@ -20,7 +20,7 @@ public class winzigc {
         switch (flag){
             case  "-ast":
                 String path_to_winzig_program = args[1];
-                System.out.println("generate AST for "+ path_to_winzig_program);
+//                System.out.println("generate AST for "+ path_to_winzig_program);
                 // call lexer and parser
 
                 String program_as_a_string = null;
@@ -40,9 +40,12 @@ public class winzigc {
                 }
                 while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
-                for(SyntaxToken token: screenTokenStream()){
-                    System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
-                }
+                List<SyntaxToken> screenedTokenStream = screenTokenStream();
+//                for(SyntaxToken token: screenedTokenStream){
+//                    System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
+//                }
+
+                Parser parser = new Parser(screenedTokenStream);
 
                 break;
             case "-test":
@@ -68,9 +71,10 @@ public class winzigc {
                     }
                     while(k != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
-                    for(SyntaxToken token: screenTokenStream()){
-                        System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
-                    }
+//                    for(SyntaxToken token: screenTokenStream()){
+//                        System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
+//                    }
+                    Parser p = new Parser(screenTokenStream());
                     tokenStream = new ArrayList<>();
                 }
                 break;
@@ -437,8 +441,9 @@ class ASTNode{
 
     private ASTNode parent;
 
-    ASTNode(String node_label, SyntaxToken syntaxToken){
+    ASTNode(String node_label){
         this.childNodes = new ArrayList<>();
+        this.node_label = node_label;
     }
 
     public List<ASTNode> getChildNodes() {
@@ -465,6 +470,7 @@ class ASTNode{
     // Do a Depth First Traverse to print all the nodes
     public void DFTraverse(int depth){
         for(int i = 0 ; i < depth; i++ ) System.out.print(". ");
+        System.out.print(this.node_label);
         System.out.println("("+ this.childNodes.size() +")");
         if(!isLeafNode()){
             for(ASTNode node: childNodes){
@@ -494,6 +500,8 @@ class ASTree{
 
 class Parser{
 
+    private ASTNode rootNode;
+
     private List<SyntaxToken> tokenStream;
 
     private int tokenIndex;
@@ -502,10 +510,16 @@ class Parser{
 
     Parser(List<SyntaxToken> tokenStream){
         this.tokenStream = tokenStream;
+        getNextToken();
+        winZigAST();
+    }
+
+    boolean hasNext(){
+        return tokenIndex <= tokenStream.size()-1;
     }
 
     // set the next token and increment the index
-    public void getNextToken(){
+    void getNextToken(){
         nextToken = tokenStream.get(tokenIndex);
         tokenIndex++;
     }
@@ -515,8 +529,103 @@ class Parser{
         return tokenStream.get(tokenIndex);
     }
 
+    void winZigAST(){
+        rootNode = new ASTNode("program");
+
+        consume("program");
+        Name(rootNode);
+        consume(":");
+        Consts(rootNode);
+        Types(rootNode);
+
+        System.out.println(nextToken.type);
+
+        rootNode.DFTraverse(0);
+    }
+
+    void Name(ASTNode parent){
+        consume(SyntaxKind.IdentifierToken, parent);
+    }
+
+    void Consts(ASTNode parent){
+        if(nextToken.type == "const"){
+            ASTNode constsNode = addASTNode(parent, "consts");
+            consume("const");
+            int list_count = 1;
+            Const(constsNode);
+            while(nextToken.type != ";"){
+                consume(",");
+                Const(constsNode);
+            }
+            consume(";");
+        }else{
+            addASTNode(parent, "consts");
+        }
+    }
+
+    void Const(ASTNode parent){
+        Name(parent);
+        consume("=");
+        ConstValue(parent);
+    }
+
+    void ConstValue(ASTNode parent){
+        // skip <char> or <integer> but create a node for <identifier>
+        if(nextToken.type == "<identifier>"){
+            Name(parent);
+        }
+    }
+
+    void Types(ASTNode parent){
+        consume("type");
+        ASTNode typesNode = addASTNode(parent, "types");
 
 
+    }
+
+    void Type(){
+
+    }
+
+    // add the new node to parent node
+    ASTNode addASTNode(ASTNode parent, String node_label){
+        ASTNode node = new ASTNode(node_label);
+        parent.addChildNode(node);
+        return node;
+    }
+
+    void consume(String type){
+        if(nextToken.type != type){
+            System.out.println("ERROR WHILE PARSING : ->|"+type+"|<-");
+            throw new Error();
+        }
+
+        if(hasNext()){
+            getNextToken();
+        }
+    }
+
+    void consume(SyntaxKind kind, ASTNode parent){
+
+        if(nextToken.kind != kind){
+            System.out.println("EXPECTED: "+kind);
+            System.out.println("FOUND: "+nextToken.kind);
+            throw new Error();
+        }
+
+        switch(kind){
+            case IdentifierToken:
+                ASTNode node_1 = new ASTNode(nextToken.type);
+                parent.addChildNode(node_1);
+
+                ASTNode node_2 = new ASTNode(nextToken.text);
+                node_1.addChildNode(node_2);
+                break;
+        }
+
+        getNextToken();
+
+    }
 
 
 }

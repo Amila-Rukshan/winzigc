@@ -8,6 +8,8 @@
 }
 program factors:
 
+{ const A = a, B = b; }
+
 var
     i : integer;
 
