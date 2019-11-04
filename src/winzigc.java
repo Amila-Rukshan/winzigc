@@ -7,6 +7,7 @@
  *         test all : javac winzigc.java; java winzigc -test
  */
 
+import javax.swing.plaf.nimbus.State;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -451,6 +452,10 @@ class ASTNode{
         return childNodes;
     }
 
+    int getChildNodesCount() {
+        return childNodes.size();
+    }
+
     public void setParentNode(ASTNode parent){
         this.parent = parent;
     }
@@ -511,8 +516,8 @@ class Parser{
     }
 
     String peek(){
-        if(tokenIndex < tokenStream.size()){
-            return tokenStream.get(tokenIndex+1).type;
+        if(tokenIndex <= tokenStream.size()-1){
+            return tokenStream.get(tokenIndex).type;
         }
         System.out.println("TOKEN ARE OVER");
         throw new Error();
@@ -539,6 +544,9 @@ class Parser{
         Types(rootNode);
         Dclns(rootNode);
         SubProgs(rootNode);
+        Body(rootNode);
+        Name(rootNode);
+        consume(".");
 
         System.out.println(nextToken.type);
 
@@ -591,11 +599,9 @@ class Parser{
                 Type(typesNode);
                 consume(";");
             }
-
         }else{
             ASTNode typesNode = addASTNode(parent, "types");
         }
-
     }
 
     void Type(ASTNode parent){
@@ -669,7 +675,8 @@ class Parser{
         Types(fcnNode);
         Dclns(fcnNode);
         Body(fcnNode);
-
+        Name(fcnNode);
+        consume(";");
     }
 
     void Params(ASTNode parent){
@@ -685,20 +692,210 @@ class Parser{
         ASTNode blockNode = addASTNode(parent, "block");
         consume("begin");
         Statement(blockNode);
-//        while(nextToken.type == ";"){
-//            consume(";");
-//            Statement(blockNode);
-//        }
-//        consume("end");
+        while(nextToken.type == ";"){
+            consume(";");
+            Statement(blockNode);
+        }
+        consume("end");
+
     }
 
     void Statement(ASTNode parent){
-        if(nextToken.type == "if"){
-            ASTNode statementNode = addASTNode(parent, "if");
-            consume("if");
-            Expression(statementNode);
+
+        switch(nextToken.type){
+            case "if":
+                ASTNode ifNode = addASTNode(parent, "if");
+                consume("if");
+                Expression(ifNode);
+                consume("then");
+                Statement(ifNode);
+                if(nextToken.type == "else"){
+                    consume("else");
+                    Statement(ifNode);
+                }
+                break;
+            case "for":
+                ASTNode forNode = addASTNode(parent, "for");
+                consume("for");
+                consume("(");
+                ForStat(forNode);
+                consume(";");
+                ForExp(forNode);
+                consume(";");
+                ForStat(forNode);
+                consume(")");
+                Statement(forNode);
+                break;
+            case "while":
+                ASTNode whileNode = addASTNode(parent, "while");
+                consume("while");
+                Expression(whileNode);
+                consume("do");
+                Statement(whileNode);
+                break;
+            case "repeat":
+                ASTNode repeatNode = addASTNode(parent, "repeat");
+                consume("repeat");
+                Statement(repeatNode);
+                while(nextToken.type == ";"){
+                    consume(";");
+                    Statement(repeatNode);
+                }
+                consume("until");
+                Expression(repeatNode);
+                break;
+            case "loop":
+                ASTNode loopNode = addASTNode(parent, "loop");
+                consume("loop");
+                Statement(loopNode);
+                while(nextToken.type == ";"){
+                    consume(";");
+                    Statement(loopNode);
+                }
+                consume("pool");
+                break;
+            case "output":
+                ASTNode outputNode = addASTNode(parent, "output");
+                consume("output");
+                consume("(");
+                OutEXp(outputNode);
+                // out exp list
+                while(nextToken.type == ","){
+                    consume(",");
+                    OutEXp(outputNode);
+                }
+                consume(")");
+                break;
+            case "exit":
+                ASTNode exitNode = addASTNode(parent, "exit");
+                consume("exit");
+                break;
+            case "return":
+                ASTNode returnNode = addASTNode(parent, "return");
+                consume("return");
+                Expression(returnNode);
+                break;
+            case "read":
+                ASTNode readNode = addASTNode(parent, "read");
+                consume("read");
+                consume("(");
+                Name(readNode);
+                while(nextToken.type == ","){
+                    consume(",");
+                    Name(readNode);
+                }
+                consume(")");
+                break;
+            case "case":
+                ASTNode caseNode = addASTNode(parent, "case");
+                consume("case");
+                Expression(parent);
+                consume("of");
+                Caseclauses(parent);
+                OtherwiseClause(parent);
+                consume("end");
+                break;
+            case "<identifier>":
+                Assignment(parent);
+                break;
+            case "begin":
+                Body(parent);
+                break;
+            default:
+                addASTNode(parent, "<null>");
+                break;
+        }
+    }
+
+    void Caseclauses(ASTNode parent){
+        Caseclause(parent);
+        consume(";");
+        if(nextToken.type == "<integer>" || nextToken.type == "<char>" || nextToken.type == "<identifier>"){
+            Caseclause(parent);
+        }
+        consume(";");
+    }
+
+    void Caseclause(ASTNode parent){
+        ASTNode case_clauseNode = addASTNode(parent, "case_clause");
+        CaseExpression(case_clauseNode);
+        while(nextToken.type == ","){
+            consume(",");
+            CaseExpression(case_clauseNode);
+        }
+        consume(":");
+        Statement(case_clauseNode);
+    }
+
+    void CaseExpression(ASTNode parent){
+        ConstValue(parent);
+        if(nextToken.type == ".."){
+            ASTNode doubleDot = addASTNode(parent, "..");
+            doubleDot.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
+            ConstValue(doubleDot);
+        }
+    }
+
+    void OtherwiseClause(ASTNode parent){
+        if(nextToken.type == "otherwise"){
+            ASTNode otherwiseNode = addASTNode(parent, "otherwise");
+            consume("otherwise");
+            Statement(otherwiseNode);
+        }else{
 
         }
+    }
+
+    void OutEXp(ASTNode parent){
+        if(nextToken.type == "<string>"){
+            StringNode(parent);
+        }else{
+            Expression(parent);
+        }
+    }
+
+    void StringNode(ASTNode parent){
+        consume(SyntaxKind.StringToken, parent);
+    }
+
+    void ForStat(ASTNode parent){
+        if(nextToken.type == ";"){
+            ASTNode nullNode = addASTNode(parent, "<null>");
+        }else{
+            Assignment(parent);
+        }
+    }
+
+    void ForExp(ASTNode parent){
+        if(nextToken.type == ";"){
+            addASTNode(parent, "true");
+        }else{
+            Expression(parent);
+        }
+    }
+
+    void Assignment(ASTNode parent){
+
+        switch(peek()){
+            case ":=":
+                ASTNode assignNode = addASTNode(parent, "assign");
+                Name(assignNode);
+                consume(":=");
+                Expression(assignNode);
+                break;
+            case ":=:":
+                ASTNode swapNode = addASTNode(parent, "swap");
+                Name(swapNode);
+                consume(":=:");
+                Name(swapNode);
+                break;
+            default:
+                System.out.println("ERROR PEEK: "+peek());
+                System.out.println("ERROR NEXT: "+nextToken.type);
+//                rootNode.DFTraverse(0);
+                throw new Error();
+        }
+
     }
 
     void Expression(ASTNode parent){
@@ -708,37 +905,37 @@ class Parser{
                 case "<=":
                     consume("<=");
                     ASTNode lessOrEqNode = addASTNode(parent, "<=");
-                    lessOrEqNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    lessOrEqNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(lessOrEqNode);
                     break;
                 case "<":
                     consume("<");
                     ASTNode lessNode = addASTNode(parent, "<");
-                    lessNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    lessNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(lessNode);
                     break;
                 case ">=":
                     consume(">=");
                     ASTNode greaterOrEqNode = addASTNode(parent, ">=");
-                    greaterOrEqNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    greaterOrEqNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(greaterOrEqNode);
                     break;
                 case ">":
                     consume(">");
                     ASTNode greaterNode = addASTNode(parent, ">");
-                    greaterNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    greaterNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(greaterNode);
                     break;
                 case "=":
                     consume("=");
                     ASTNode equalNode = addASTNode(parent, "=");
-                    equalNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    equalNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(equalNode);
                     break;
                 case "<>":
                     consume("<>");
                     ASTNode InequalNode = addASTNode(parent, "<>");
-                    InequalNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    InequalNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(InequalNode);
                     break;
                 default:
@@ -757,19 +954,19 @@ class Parser{
                 case "+":
                     consume("+");
                     ASTNode addNode = addASTNode(parent, "+");
-                    addNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    addNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(addNode);
                     break;
                 case "-":
                     consume("-");
                     ASTNode minusNode = addASTNode(parent, "-");
-                    minusNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    minusNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(minusNode);
                     break;
                 case "or":
                     consume("or");
                     ASTNode orNode = addASTNode(parent, "or");
-                    orNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    orNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(orNode);
                     break;
                 default:
@@ -786,21 +983,25 @@ class Parser{
                 case "*":
                     consume("*");
                     ASTNode mulNode = addASTNode(parent, "*");
+                    mulNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(mulNode);
                     break;
                 case "/":
                     consume("/");
                     ASTNode divNode = addASTNode(parent, "/");
+                    divNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(divNode);
                     break;
                 case "and":
                     consume("and");
                     ASTNode andNode = addASTNode(parent, "and");
+                    andNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(andNode);
                     break;
                 case "mod":
                     consume("mod");
                     ASTNode modNode = addASTNode(parent, "mod");
+                    modNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(modNode);
                     break;
             }
