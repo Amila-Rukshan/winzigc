@@ -434,7 +434,7 @@ class Lexer{
     }
 }
 
-// to represent nodes in ABS
+// to represent nodes in AST
 class ASTNode{
 
     private String node_label;
@@ -460,6 +460,14 @@ class ASTNode{
         child.setParentNode(this);
     }
 
+    ASTNode deleteASTNode(int index){
+        return childNodes.remove(index);
+    }
+
+    void addChildAtIndex(int index, ASTNode child){
+        childNodes.add(index, child);
+    }
+
     public ASTNode getParent(){
         return parent;
     }
@@ -482,23 +490,6 @@ class ASTNode{
 
 }
 
-// this is to hold the tree root
-class ASTree{
-    private ASTNode rootNode;
-
-    ASTree(ASTNode root){
-        rootNode = root;
-    }
-
-    public ASTNode getRootNode(){
-        return rootNode;
-    }
-
-    public void TraverseFromTheRoot(){
-        rootNode.DFTraverse(0);
-    }
-}
-
 class Parser{
 
     private ASTNode rootNode;
@@ -517,6 +508,14 @@ class Parser{
 
     boolean hasNext(){
         return tokenIndex <= tokenStream.size()-1;
+    }
+
+    String peek(){
+        if(tokenIndex < tokenStream.size()){
+            return tokenStream.get(tokenIndex+1).type;
+        }
+        System.out.println("TOKEN ARE OVER");
+        throw new Error();
     }
 
     // set the next token and increment the index
@@ -696,24 +695,193 @@ class Parser{
     void Statement(ASTNode parent){
         if(nextToken.type == "if"){
             ASTNode statementNode = addASTNode(parent, "if");
+            consume("if");
             Expression(statementNode);
 
         }
     }
 
     void Expression(ASTNode parent){
-
+        Term(parent);
+        if(nextToken.type == "<=" || nextToken.type == "<" || nextToken.type == ">="|| nextToken.type == ">"|| nextToken.type == "="|| nextToken.type == "<>"){
+            switch(nextToken.type){
+                case "<=":
+                    consume("<=");
+                    ASTNode lessOrEqNode = addASTNode(parent, "<=");
+                    lessOrEqNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(lessOrEqNode);
+                    break;
+                case "<":
+                    consume("<");
+                    ASTNode lessNode = addASTNode(parent, "<");
+                    lessNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(lessNode);
+                    break;
+                case ">=":
+                    consume(">=");
+                    ASTNode greaterOrEqNode = addASTNode(parent, ">=");
+                    greaterOrEqNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(greaterOrEqNode);
+                    break;
+                case ">":
+                    consume(">");
+                    ASTNode greaterNode = addASTNode(parent, ">");
+                    greaterNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(greaterNode);
+                    break;
+                case "=":
+                    consume("=");
+                    ASTNode equalNode = addASTNode(parent, "=");
+                    equalNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(equalNode);
+                    break;
+                case "<>":
+                    consume("<>");
+                    ASTNode InequalNode = addASTNode(parent, "<>");
+                    InequalNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(InequalNode);
+                    break;
+                default:
+                    System.out.println("ERROR in Expression");
+                    System.out.println("TOKEN WAS: "+nextToken.type);
+                    rootNode.DFTraverse(0);
+                    throw new Error();
+            }
+        }
     }
 
-    void Term(ASTNode parent){
-
+    void Term(ASTNode parent) {
+        Factor(parent);
+        if (nextToken.type == "+" || nextToken.type == "-" || nextToken.type == "or") {
+            switch (nextToken.type) {
+                case "+":
+                    consume("+");
+                    ASTNode addNode = addASTNode(parent, "+");
+                    addNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(addNode);
+                    break;
+                case "-":
+                    consume("-");
+                    ASTNode minusNode = addASTNode(parent, "-");
+                    minusNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(minusNode);
+                    break;
+                case "or":
+                    consume("or");
+                    ASTNode orNode = addASTNode(parent, "or");
+                    orNode.addChildAtIndex(0, parent.deleteASTNode(0));
+                    Term(orNode);
+                    break;
+                default:
+                    System.out.println("ERROR in Term");
+                    throw new Error();
+            }
+        }
     }
 
     void Factor(ASTNode parent){
-
+        Primary(parent);
+        if(nextToken.type == "*" || nextToken.type == "/" ||nextToken.type == "and" ||nextToken.type == "mod" ){
+            switch(nextToken.type){
+                case "*":
+                    consume("*");
+                    ASTNode mulNode = addASTNode(parent, "*");
+                    Factor(mulNode);
+                    break;
+                case "/":
+                    consume("/");
+                    ASTNode divNode = addASTNode(parent, "/");
+                    Factor(divNode);
+                    break;
+                case "and":
+                    consume("and");
+                    ASTNode andNode = addASTNode(parent, "and");
+                    Factor(andNode);
+                    break;
+                case "mod":
+                    consume("mod");
+                    ASTNode modNode = addASTNode(parent, "mod");
+                    Factor(modNode);
+                    break;
+            }
+        }
     }
 
     void Primary(ASTNode parent){
+
+        switch(nextToken.type){
+            case "<char>":
+                consume(SyntaxKind.CharToken,parent); break;
+            case "<integer>":
+                System.out.println(nextToken.type + " "+nextToken.text);
+                consume(SyntaxKind.IntegerToken,parent); break;
+            case "eof":
+                consume("eof"); break;
+            case "-":
+                consume("-");
+                ASTNode minusNode = addASTNode(parent, "-");
+                Primary(minusNode);
+                break;
+            case "+":
+                consume("+");
+                Primary(parent);
+                break;
+            case "not":
+                consume("not");
+                ASTNode notNode = addASTNode(parent, "not");
+                Primary(notNode);
+                break;
+            case "(":
+                consume("(");
+                Expression(parent);
+                consume(")");
+                break;
+            case "succ":
+                consume("succ");
+                consume("(");
+                ASTNode succNode = addASTNode(parent, "succ");
+                Expression(succNode);
+                consume(")");
+                break;
+            case "pred":
+                consume("pred");
+                consume("(");
+                ASTNode predNode = addASTNode(parent, "pred");
+                Expression(predNode);
+                consume(")");
+                break;
+            case "chr":
+                consume("chr");
+                consume("(");
+                ASTNode chrNode = addASTNode(parent, "chr");
+                Expression(chrNode);
+                consume(")");
+                break;
+            case "ord":
+                consume("ord");
+                consume("(");
+                ASTNode ordNode = addASTNode(parent, "ord");
+                Expression(ordNode);
+                consume(")");
+                break;
+            case "<identifier>":
+                if(peek() == "("){
+                    ASTNode callNode = addASTNode(parent, "call");
+                    Name(callNode);
+                    consume("(");
+                    Expression(callNode);
+                    while(nextToken.type == ","){
+                        consume(",");
+                        Expression(callNode);
+                    }
+                    consume(")");
+                }else{
+                    Name(parent);
+                }
+                break;
+            default:
+                System.out.println("ERROR WHILE PARSING: " + nextToken.type); throw new Error();
+        }
 
     }
 
@@ -744,21 +912,18 @@ class Parser{
             throw new Error();
         }
 
-        switch(kind){
-            case IdentifierToken:
-                ASTNode node_1 = new ASTNode(nextToken.type);
-                parent.addChildNode(node_1);
+        // SyntaxKind.IdentifierToken
+        // SyntaxKind.IntegerToken
 
-                ASTNode node_2 = new ASTNode(nextToken.text);
-                node_1.addChildNode(node_2);
-                break;
-        }
+        ASTNode node_1 = new ASTNode(nextToken.type);
+        parent.addChildNode(node_1);
+
+        ASTNode node_2 = new ASTNode(nextToken.text);
+        node_1.addChildNode(node_2);
 
         getNextToken();
 
     }
-
-
 }
 
 
