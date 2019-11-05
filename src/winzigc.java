@@ -7,6 +7,7 @@
  *         test all : javac winzigc.java; java winzigc -test
  */
 
+import javax.swing.*;
 import javax.swing.plaf.nimbus.State;
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -51,7 +52,7 @@ public class winzigc {
 
                 break;
             case "-test":
-                for(int i = 1; i <= 25; i++){
+                for(int i = 14; i <= 25; i++){
                     String path =  String.format("winzig_test_programs/winzig_%02d" , i);
                     System.out.println("================================= "+ path+" ===========================================");
                     // call lexer and parser
@@ -93,7 +94,7 @@ public class winzigc {
     }
 
     private static String readWinzigProgram(String path) throws IOException {
-        System.out.println(new File("").getAbsolutePath()+"/"+path);
+//        System.out.println(new File("").getAbsolutePath()+"/"+path);
         BufferedReader reader = new BufferedReader(new FileReader(path));
         String         line;
         StringBuilder  stringBuilder = new StringBuilder();
@@ -220,7 +221,7 @@ class Lexer{
     String findIdentifiersAndSyntax(){
         String identiferChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
         int start = _position;
-        if(identiferChars.indexOf(getCurrentChar()) >= 9){
+        if(identiferChars.indexOf(getCurrentChar()) >= 10){
             _position++;
             while(identiferChars.indexOf(getCurrentChar()) >= 0){
                 _position++;
@@ -548,7 +549,7 @@ class Parser{
         Name(rootNode);
         consume(".");
 
-        System.out.println(nextToken.type);
+//        System.out.println(nextToken.type);
 
         rootNode.DFTraverse(0);
     }
@@ -582,7 +583,7 @@ class Parser{
     void ConstValue(ASTNode parent){
         // skip <char> or <integer> but create a node for <identifier>
         if(nextToken.type.equals("<char>") || nextToken.type.equals("<integer>") ){
-            consume(nextToken.type);
+            consume(nextToken.kind ,parent);
         }
 
         if(nextToken.type == "<identifier>"){
@@ -789,10 +790,10 @@ class Parser{
             case "case":
                 ASTNode caseNode = addASTNode(parent, "case");
                 consume("case");
-                Expression(parent);
+                Expression(caseNode);
                 consume("of");
-                Caseclauses(parent);
-                OtherwiseClause(parent);
+                Caseclauses(caseNode);
+                OtherwiseClause(caseNode);
                 consume("end");
                 break;
             case "<identifier>":
@@ -810,10 +811,10 @@ class Parser{
     void Caseclauses(ASTNode parent){
         Caseclause(parent);
         consume(";");
-        if(nextToken.type == "<integer>" || nextToken.type == "<char>" || nextToken.type == "<identifier>"){
+        while(nextToken.type == "<integer>" || nextToken.type == "<char>" || nextToken.type == "<identifier>"){
             Caseclause(parent);
+            consume(";");
         }
-        consume(";");
     }
 
     void Caseclause(ASTNode parent){
@@ -831,6 +832,7 @@ class Parser{
         ConstValue(parent);
         if(nextToken.type == ".."){
             ASTNode doubleDot = addASTNode(parent, "..");
+            consume("..");
             doubleDot.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
             ConstValue(doubleDot);
         }
@@ -850,7 +852,8 @@ class Parser{
         if(nextToken.type == "<string>"){
             StringNode(parent);
         }else{
-            Expression(parent);
+            ASTNode integerNode = addASTNode(parent, "integer");
+            Expression(integerNode);
         }
     }
 
@@ -1014,9 +1017,10 @@ class Parser{
             case "<char>":
                 consume(SyntaxKind.CharToken,parent); break;
             case "<integer>":
-                System.out.println(nextToken.type + " "+nextToken.text);
+//                System.out.println(nextToken.type + " "+nextToken.text);
                 consume(SyntaxKind.IntegerToken,parent); break;
             case "eof":
+                addASTNode(parent, "eof");
                 consume("eof"); break;
             case "-":
                 consume("-");
@@ -1096,7 +1100,8 @@ class Parser{
     void consume(String type){
         if(nextToken.type != type){
             System.out.println("EXPECTED: ->|"+type+"|<-");
-            System.out.println("FOUND: "+nextToken.type);
+            System.out.println("FOUND: "+nextToken.type+" "+nextToken.text);
+//            rootNode.DFTraverse(0);
             throw new Error();
         }
 
@@ -1109,7 +1114,8 @@ class Parser{
 
         if(nextToken.kind != kind){
             System.out.println("EXPECTED: "+kind);
-            System.out.println("FOUND: "+nextToken.kind);
+            System.out.println("FOUND: "+nextToken.kind+" "+nextToken.text);
+            rootNode.DFTraverse(0);
             throw new Error();
         }
 
