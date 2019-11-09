@@ -952,25 +952,25 @@ class Parser{
 
     void Term(ASTNode parent) {
         Factor(parent);
-        if (nextToken.type == "+" || nextToken.type == "-" || nextToken.type == "or") {
+        while (nextToken.type == "+" || nextToken.type == "-" || nextToken.type == "or") {
             switch (nextToken.type) {
                 case "+":
                     consume("+");
                     ASTNode addNode = addASTNode(parent, "+");
                     addNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
-                    Term(addNode);
+                    Factor(addNode);
                     break;
                 case "-":
                     consume("-");
                     ASTNode minusNode = addASTNode(parent, "-");
                     minusNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
-                    Term(minusNode);
+                    Factor(minusNode);
                     break;
                 case "or":
                     consume("or");
                     ASTNode orNode = addASTNode(parent, "or");
                     orNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
-                    Term(orNode);
+                    Factor(orNode);
                     break;
                 default:
                     System.out.println("ERROR in Term");
@@ -981,7 +981,7 @@ class Parser{
 
     void Factor(ASTNode parent){
         Primary(parent);
-        if(nextToken.type == "*" || nextToken.type == "/" ||nextToken.type == "and" ||nextToken.type == "mod" ){
+        while(nextToken.type == "*" || nextToken.type == "/" ||nextToken.type == "and" ||nextToken.type == "mod" ){
             switch(nextToken.type){
                 case "*":
                     consume("*");
@@ -1029,7 +1029,8 @@ class Parser{
                 break;
             case "+":
                 consume("+");
-                Primary(parent);
+                ASTNode plusNode = addASTNode(parent, "+");
+                Primary(plusNode);
                 break;
             case "not":
                 consume("not");
