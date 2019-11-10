@@ -13,6 +13,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public class winzigc {
 
@@ -23,8 +24,7 @@ public class winzigc {
         switch (flag){
             case  "-ast":
                 String path_to_winzig_program = args[1];
-//                System.out.println("generate AST for "+ path_to_winzig_program);
-                // call lexer and parser
+
 
                 String program_as_a_string = null;
                 try {
@@ -44,12 +44,9 @@ public class winzigc {
                 while(kind != SyntaxKind.EndOfProgramToken);  //  & kind != SyntaxKind.BadToken
 
                 List<SyntaxToken> screenedTokenStream = screenTokenStream();
-//                for(SyntaxToken token: screenedTokenStream){
-//                    System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
-//                }
 
-                Parser parser = new Parser(screenedTokenStream);
-
+//                ParserTopDownTree parser = new ParserTopDownTree(screenedTokenStream);
+                ParserBottomUpTree parser = new ParserBottomUpTree(screenedTokenStream);
                 break;
             case "-test":
                 for(int i = 14; i <= 25; i++){
@@ -77,7 +74,7 @@ public class winzigc {
 //                    for(SyntaxToken token: screenTokenStream()){
 //                        System.out.format("%-30s%5s%20s%15s", token.kind, token.position, token.type, token.text+"\n");
 //                    }
-                    Parser p = new Parser(screenTokenStream());
+                    ParserTopDownTree p = new ParserTopDownTree(screenTokenStream());
                     tokenStream = new ArrayList<>();
                 }
                 break;
@@ -494,9 +491,16 @@ class ASTNode{
         }
     }
 
+    public String getNode_label() {
+        return node_label;
+    }
 }
 
-class Parser{
+abstract class Parser{
+    // Base class for the Parsers
+}
+
+class ParserTopDownTree extends Parser{
 
     private ASTNode rootNode;
 
@@ -506,7 +510,7 @@ class Parser{
 
     SyntaxToken nextToken;
 
-    Parser(List<SyntaxToken> tokenStream){
+    ParserTopDownTree(List<SyntaxToken> tokenStream){
         this.tokenStream = tokenStream;
         getNextToken();
         winZigAST();
@@ -538,16 +542,16 @@ class Parser{
     void winZigAST(){
         rootNode = new ASTNode("program");
 
-        consume("program");
+        read("program");
         Name(rootNode);
-        consume(":");
+        read(":");
         Consts(rootNode);
         Types(rootNode);
         Dclns(rootNode);
         SubProgs(rootNode);
         Body(rootNode);
         Name(rootNode);
-        consume(".");
+        read(".");
 
 //        System.out.println(nextToken.type);
 
@@ -555,20 +559,20 @@ class Parser{
     }
 
     void Name(ASTNode parent){
-        consume(SyntaxKind.IdentifierToken, parent);
+        read(SyntaxKind.IdentifierToken, parent);
     }
 
     void Consts(ASTNode parent){
         if(nextToken.type == "const"){
             ASTNode constsNode = addASTNode(parent, "consts");
-            consume("const");
+            read("const");
             int list_count = 1;
             Const(constsNode);
             while(nextToken.type != ";"){
-                consume(",");
+                read(",");
                 Const(constsNode);
             }
-            consume(";");
+            read(";");
         }else{
             addASTNode(parent, "consts");
         }
@@ -576,14 +580,14 @@ class Parser{
 
     void Const(ASTNode parent){
         Name(parent);
-        consume("=");
+        read("=");
         ConstValue(parent);
     }
 
     void ConstValue(ASTNode parent){
         // skip <char> or <integer> but create a node for <identifier>
         if(nextToken.type.equals("<char>") || nextToken.type.equals("<integer>") ){
-            consume(nextToken.kind ,parent);
+            read(nextToken.kind ,parent);
         }
 
         if(nextToken.type == "<identifier>"){
@@ -594,11 +598,11 @@ class Parser{
     void Types(ASTNode parent){
         if(nextToken.type == "type"){
             ASTNode typesNode = addASTNode(parent, "types");
-            consume("type");
+            read("type");
 
             while(nextToken.type == "<identifier>"){
                 Type(typesNode);
-                consume(";");
+                read(";");
             }
         }else{
             ASTNode typesNode = addASTNode(parent, "types");
@@ -610,8 +614,8 @@ class Parser{
         parent.addChildNode(typeNode);
 
         if(nextToken.type == "<identifier>"){
-            consume(SyntaxKind.IdentifierToken, typeNode);
-            consume("=");
+            read(SyntaxKind.IdentifierToken, typeNode);
+            read("=");
             LitList(typeNode);
         }
     }
@@ -620,24 +624,24 @@ class Parser{
         ASTNode litNode = new ASTNode("lit");
         parent.addChildNode(litNode);
 
-        consume("(");
+        read("(");
         Name(litNode);
         while(nextToken.type != ")"){
-            consume(",");
+            read(",");
             Name(litNode);
         }
-        consume(")");
+        read(")");
     }
 
     void Dclns(ASTNode parent){
         if(nextToken.type == "var"){
             ASTNode dclnsNode = addASTNode(parent, "dclns");
-            consume("var");
+            read("var");
             Dcln(dclnsNode);
-            consume(";");
+            read(";");
             while(nextToken.type == "<identifier>"){
                 Dcln(dclnsNode);
-                consume(";");
+                read(";");
             }
         }else{
             addASTNode(parent, "dclns");
@@ -648,10 +652,10 @@ class Parser{
         ASTNode varNode = addASTNode(parent, "var");
         Name(varNode);
         while(nextToken.type != ":"){
-            consume(",");
+            read(",");
             Name(varNode);
         }
-        consume(":");
+        read(":");
         Name(varNode);
     }
 
@@ -664,40 +668,40 @@ class Parser{
 
     void Fcn(ASTNode parent){
         ASTNode fcnNode = addASTNode(parent, "fcn");
-        consume("function");
+        read("function");
         Name(fcnNode);
-        consume("(");
+        read("(");
         Params(fcnNode);
-        consume(")");
-        consume(":");
+        read(")");
+        read(":");
         Name(fcnNode);
-        consume(";");
+        read(";");
         Consts(fcnNode);
         Types(fcnNode);
         Dclns(fcnNode);
         Body(fcnNode);
         Name(fcnNode);
-        consume(";");
+        read(";");
     }
 
     void Params(ASTNode parent){
         ASTNode paramsNode = addASTNode(parent, "params");
         Dcln(paramsNode);
         while(nextToken.type == ";"){
-            consume(";");
+            read(";");
             Dcln(paramsNode);
         }
     }
 
     void Body(ASTNode parent){
         ASTNode blockNode = addASTNode(parent, "block");
-        consume("begin");
+        read("begin");
         Statement(blockNode);
         while(nextToken.type == ";"){
-            consume(";");
+            read(";");
             Statement(blockNode);
         }
-        consume("end");
+        read("end");
 
     }
 
@@ -706,95 +710,95 @@ class Parser{
         switch(nextToken.type){
             case "if":
                 ASTNode ifNode = addASTNode(parent, "if");
-                consume("if");
+                read("if");
                 Expression(ifNode);
-                consume("then");
+                read("then");
                 Statement(ifNode);
                 if(nextToken.type == "else"){
-                    consume("else");
+                    read("else");
                     Statement(ifNode);
                 }
                 break;
             case "for":
                 ASTNode forNode = addASTNode(parent, "for");
-                consume("for");
-                consume("(");
+                read("for");
+                read("(");
                 ForStat(forNode);
-                consume(";");
+                read(";");
                 ForExp(forNode);
-                consume(";");
+                read(";");
                 ForStat(forNode);
-                consume(")");
+                read(")");
                 Statement(forNode);
                 break;
             case "while":
                 ASTNode whileNode = addASTNode(parent, "while");
-                consume("while");
+                read("while");
                 Expression(whileNode);
-                consume("do");
+                read("do");
                 Statement(whileNode);
                 break;
             case "repeat":
                 ASTNode repeatNode = addASTNode(parent, "repeat");
-                consume("repeat");
+                read("repeat");
                 Statement(repeatNode);
                 while(nextToken.type == ";"){
-                    consume(";");
+                    read(";");
                     Statement(repeatNode);
                 }
-                consume("until");
+                read("until");
                 Expression(repeatNode);
                 break;
             case "loop":
                 ASTNode loopNode = addASTNode(parent, "loop");
-                consume("loop");
+                read("loop");
                 Statement(loopNode);
                 while(nextToken.type == ";"){
-                    consume(";");
+                    read(";");
                     Statement(loopNode);
                 }
-                consume("pool");
+                read("pool");
                 break;
             case "output":
                 ASTNode outputNode = addASTNode(parent, "output");
-                consume("output");
-                consume("(");
+                read("output");
+                read("(");
                 OutEXp(outputNode);
                 // out exp list
                 while(nextToken.type == ","){
-                    consume(",");
+                    read(",");
                     OutEXp(outputNode);
                 }
-                consume(")");
+                read(")");
                 break;
             case "exit":
                 ASTNode exitNode = addASTNode(parent, "exit");
-                consume("exit");
+                read("exit");
                 break;
             case "return":
                 ASTNode returnNode = addASTNode(parent, "return");
-                consume("return");
+                read("return");
                 Expression(returnNode);
                 break;
             case "read":
                 ASTNode readNode = addASTNode(parent, "read");
-                consume("read");
-                consume("(");
+                read("read");
+                read("(");
                 Name(readNode);
                 while(nextToken.type == ","){
-                    consume(",");
+                    read(",");
                     Name(readNode);
                 }
-                consume(")");
+                read(")");
                 break;
             case "case":
                 ASTNode caseNode = addASTNode(parent, "case");
-                consume("case");
+                read("case");
                 Expression(caseNode);
-                consume("of");
+                read("of");
                 Caseclauses(caseNode);
                 OtherwiseClause(caseNode);
-                consume("end");
+                read("end");
                 break;
             case "<identifier>":
                 Assignment(parent);
@@ -810,10 +814,10 @@ class Parser{
 
     void Caseclauses(ASTNode parent){
         Caseclause(parent);
-        consume(";");
+        read(";");
         while(nextToken.type == "<integer>" || nextToken.type == "<char>" || nextToken.type == "<identifier>"){
             Caseclause(parent);
-            consume(";");
+            read(";");
         }
     }
 
@@ -821,10 +825,10 @@ class Parser{
         ASTNode case_clauseNode = addASTNode(parent, "case_clause");
         CaseExpression(case_clauseNode);
         while(nextToken.type == ","){
-            consume(",");
+            read(",");
             CaseExpression(case_clauseNode);
         }
-        consume(":");
+        read(":");
         Statement(case_clauseNode);
     }
 
@@ -832,7 +836,7 @@ class Parser{
         ConstValue(parent);
         if(nextToken.type == ".."){
             ASTNode doubleDot = addASTNode(parent, "..");
-            consume("..");
+            read("..");
             doubleDot.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
             ConstValue(doubleDot);
         }
@@ -841,7 +845,7 @@ class Parser{
     void OtherwiseClause(ASTNode parent){
         if(nextToken.type == "otherwise"){
             ASTNode otherwiseNode = addASTNode(parent, "otherwise");
-            consume("otherwise");
+            read("otherwise");
             Statement(otherwiseNode);
         }else{
 
@@ -858,7 +862,7 @@ class Parser{
     }
 
     void StringNode(ASTNode parent){
-        consume(SyntaxKind.StringToken, parent);
+        read(SyntaxKind.StringToken, parent);
     }
 
     void ForStat(ASTNode parent){
@@ -883,13 +887,13 @@ class Parser{
             case ":=":
                 ASTNode assignNode = addASTNode(parent, "assign");
                 Name(assignNode);
-                consume(":=");
+                read(":=");
                 Expression(assignNode);
                 break;
             case ":=:":
                 ASTNode swapNode = addASTNode(parent, "swap");
                 Name(swapNode);
-                consume(":=:");
+                read(":=:");
                 Name(swapNode);
                 break;
             default:
@@ -906,37 +910,37 @@ class Parser{
         if(nextToken.type == "<=" || nextToken.type == "<" || nextToken.type == ">="|| nextToken.type == ">"|| nextToken.type == "="|| nextToken.type == "<>"){
             switch(nextToken.type){
                 case "<=":
-                    consume("<=");
+                    read("<=");
                     ASTNode lessOrEqNode = addASTNode(parent, "<=");
                     lessOrEqNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(lessOrEqNode);
                     break;
                 case "<":
-                    consume("<");
+                    read("<");
                     ASTNode lessNode = addASTNode(parent, "<");
                     lessNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(lessNode);
                     break;
                 case ">=":
-                    consume(">=");
+                    read(">=");
                     ASTNode greaterOrEqNode = addASTNode(parent, ">=");
                     greaterOrEqNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(greaterOrEqNode);
                     break;
                 case ">":
-                    consume(">");
+                    read(">");
                     ASTNode greaterNode = addASTNode(parent, ">");
                     greaterNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(greaterNode);
                     break;
                 case "=":
-                    consume("=");
+                    read("=");
                     ASTNode equalNode = addASTNode(parent, "=");
                     equalNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(equalNode);
                     break;
                 case "<>":
-                    consume("<>");
+                    read("<>");
                     ASTNode InequalNode = addASTNode(parent, "<>");
                     InequalNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Term(InequalNode);
@@ -955,19 +959,19 @@ class Parser{
         while (nextToken.type == "+" || nextToken.type == "-" || nextToken.type == "or") {
             switch (nextToken.type) {
                 case "+":
-                    consume("+");
+                    read("+");
                     ASTNode addNode = addASTNode(parent, "+");
                     addNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(addNode);
                     break;
                 case "-":
-                    consume("-");
+                    read("-");
                     ASTNode minusNode = addASTNode(parent, "-");
                     minusNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(minusNode);
                     break;
                 case "or":
-                    consume("or");
+                    read("or");
                     ASTNode orNode = addASTNode(parent, "or");
                     orNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(orNode);
@@ -984,25 +988,25 @@ class Parser{
         while(nextToken.type == "*" || nextToken.type == "/" ||nextToken.type == "and" ||nextToken.type == "mod" ){
             switch(nextToken.type){
                 case "*":
-                    consume("*");
+                    read("*");
                     ASTNode mulNode = addASTNode(parent, "*");
                     mulNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(mulNode);
                     break;
                 case "/":
-                    consume("/");
+                    read("/");
                     ASTNode divNode = addASTNode(parent, "/");
                     divNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(divNode);
                     break;
                 case "and":
-                    consume("and");
+                    read("and");
                     ASTNode andNode = addASTNode(parent, "and");
                     andNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(andNode);
                     break;
                 case "mod":
-                    consume("mod");
+                    read("mod");
                     ASTNode modNode = addASTNode(parent, "mod");
                     modNode.addChildAtIndex(0, parent.deleteASTNode(parent.getChildNodesCount()-2));
                     Factor(modNode);
@@ -1015,72 +1019,72 @@ class Parser{
 
         switch(nextToken.type){
             case "<char>":
-                consume(SyntaxKind.CharToken,parent); break;
+                read(SyntaxKind.CharToken,parent); break;
             case "<integer>":
 //                System.out.println(nextToken.type + " "+nextToken.text);
-                consume(SyntaxKind.IntegerToken,parent); break;
+                read(SyntaxKind.IntegerToken,parent); break;
             case "eof":
                 addASTNode(parent, "eof");
-                consume("eof"); break;
+                read("eof"); break;
             case "-":
-                consume("-");
+                read("-");
                 ASTNode minusNode = addASTNode(parent, "-");
                 Primary(minusNode);
                 break;
             case "+":
-                consume("+");
+                read("+");
                 ASTNode plusNode = addASTNode(parent, "+");
                 Primary(plusNode);
                 break;
             case "not":
-                consume("not");
+                read("not");
                 ASTNode notNode = addASTNode(parent, "not");
                 Primary(notNode);
                 break;
             case "(":
-                consume("(");
+                read("(");
                 Expression(parent);
-                consume(")");
+                read(")");
                 break;
             case "succ":
-                consume("succ");
-                consume("(");
+                read("succ");
+                read("(");
                 ASTNode succNode = addASTNode(parent, "succ");
                 Expression(succNode);
-                consume(")");
+                read(")");
                 break;
             case "pred":
-                consume("pred");
-                consume("(");
+                read("pred");
+                read("(");
                 ASTNode predNode = addASTNode(parent, "pred");
                 Expression(predNode);
-                consume(")");
+                read(")");
                 break;
             case "chr":
-                consume("chr");
-                consume("(");
+                read("chr");
+                read("(");
                 ASTNode chrNode = addASTNode(parent, "chr");
                 Expression(chrNode);
-                consume(")");
+                read(")");
                 break;
             case "ord":
-                consume("ord");
-                consume("(");
+                read("ord");
+                read("(");
                 ASTNode ordNode = addASTNode(parent, "ord");
                 Expression(ordNode);
-                consume(")");
+                read(")");
                 break;
             case "<identifier>":
                 if(peek() == "("){
                     ASTNode callNode = addASTNode(parent, "call");
                     Name(callNode);
-                    consume("(");
+                    read("(");
                     Expression(callNode);
                     while(nextToken.type == ","){
-                        consume(",");
+                        read(",");
                         Expression(callNode);
                     }
-                    consume(")");
+                    read(")");
                 }else{
                     Name(parent);
                 }
@@ -1098,7 +1102,7 @@ class Parser{
         return node;
     }
 
-    void consume(String type){
+    void read(String type){
         if(nextToken.type != type){
             System.out.println("EXPECTED: ->|"+type+"|<-");
             System.out.println("FOUND: "+nextToken.type+" "+nextToken.text);
@@ -1111,7 +1115,7 @@ class Parser{
         }
     }
 
-    void consume(SyntaxKind kind, ASTNode parent){
+    void read(SyntaxKind kind, ASTNode parent){
 
         if(nextToken.kind != kind){
             System.out.println("EXPECTED: "+kind);
@@ -1132,6 +1136,141 @@ class Parser{
         getNextToken();
 
     }
+}
+
+class ParserBottomUpTree extends Parser{
+    private Stack<ASTNode> treeStack;
+
+    private List<SyntaxToken> tokenStream;
+
+    private int tokenIndex;
+
+    SyntaxToken nextToken;
+
+    boolean hasNext(){
+        return tokenIndex <= tokenStream.size()-1;
+    }
+
+    String peek(){
+        if(tokenIndex <= tokenStream.size()-1){
+            return tokenStream.get(tokenIndex).type;
+        }
+        System.out.println("TOKEN ARE OVER");
+        throw new Error();
+    }
+
+    // set the next token and increment the index
+    void getNextToken(){
+        nextToken = tokenStream.get(tokenIndex);
+        tokenIndex++;
+    }
+
+    ParserBottomUpTree(List<SyntaxToken> tokenStream){
+        this.tokenStream = tokenStream;
+        treeStack = new Stack<>();
+        getNextToken();
+        winZigAST();
+    }
+
+    // look what's the next token without incrementing the token index
+    public SyntaxToken peekToken(){
+        return tokenStream.get(tokenIndex);
+    }
+
+    void winZigAST(){
+        read("program");
+        Name();
+        read(":");
+        Consts();
+
+
+        constructTree("program" ,2);
+
+        for(ASTNode node : treeStack){
+            node.DFTraverse(0);
+        }
+    }
+
+    void Name(){
+        read(SyntaxKind.IdentifierToken);
+    }
+
+    void Consts(){
+        if(nextToken.type == "const"){
+            read("const");
+            int list_count = 1;
+            Const();
+            while(nextToken.type != ";"){
+                read(",");
+                Const();
+                list_count += 1;
+            }
+            read(";");
+            constructTree("consts" ,list_count);
+        }else{
+            constructTree("consts" ,0);
+        }
+    }
+
+    void Const(){
+        Name();
+        read("=");
+        ConstValue();
+
+        constructTree("const", 2);
+    }
+
+    void ConstValue(){
+        // skip <char> or <integer> but create a node for <identifier>
+        if(nextToken.type.equals("<char>") || nextToken.type.equals("<integer>") ){
+            read(nextToken.kind);
+        }
+
+        if(nextToken.type == "<identifier>"){
+            Name();
+        }
+    }
+
+    void read(String type){
+        if(nextToken.type != type){
+            System.out.println("EXPECTED: ->|"+type+"|<-");
+            System.out.println("FOUND: "+nextToken.type+" "+nextToken.text);
+            throw new Error();
+        }
+
+        if(hasNext()){
+            getNextToken();
+        }
+    }
+
+    void read(SyntaxKind kind){
+
+        if(nextToken.kind != kind){
+            System.out.println("EXPECTED: "+kind);
+            System.out.println("FOUND: "+nextToken.kind+" "+nextToken.text);
+            throw new Error();
+        }
+
+        ASTNode node_1 = new ASTNode(nextToken.type);
+
+        ASTNode node_2 = new ASTNode(nextToken.text);
+        node_1.addChildNode(node_2);
+
+        treeStack.push(node_1);
+
+        getNextToken();
+
+    }
+
+
+    void constructTree(String node_label, int count){
+        ASTNode node = new ASTNode(node_label);
+        for(int i = 0; i < count ;i++){
+            node.addChildAtIndex(0,treeStack.pop());
+        }
+        treeStack.push(node);
+    }
+
 }
 
 
