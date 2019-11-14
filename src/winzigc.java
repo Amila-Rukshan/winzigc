@@ -1137,6 +1137,8 @@ class ParserTopDownTree extends Parser{
 class ParserBottomUpTree extends Parser{
     private Stack<ASTNode> treeStack;
 
+    private Stack<BinaryTreeNode> binaryTreeStack;
+
     private List<SyntaxToken> tokenStream;
 
     private int tokenIndex;
@@ -1164,6 +1166,8 @@ class ParserBottomUpTree extends Parser{
     ParserBottomUpTree(List<SyntaxToken> tokenStream){
         this.tokenStream = tokenStream;
         treeStack = new Stack<>();
+        binaryTreeStack = new Stack<>();
+
         getNextToken();
         winZigAST();
     }
@@ -1188,12 +1192,14 @@ class ParserBottomUpTree extends Parser{
         // change count accordingly
         constructTree("program" ,7);
 
-        for(ASTNode node : treeStack){
-            node.DFTraverse(0);
+//        for(ASTNode node : treeStack){
+//            node.DFTraverse(0);
 //            System.out.println("---------------------");
+//        }
+
+        for(BinaryTreeNode node : binaryTreeStack){
+            node.PreOrderTraverse(0);
         }
-        // only one node should remain by now
-//        treeStack.pop().DFTraverse(0);
 
     }
 
@@ -1783,26 +1789,92 @@ class ParserBottomUpTree extends Parser{
             throw new Error();
         }
 
-        ASTNode node_1 = new ASTNode(nextToken.type);
+//        ASTNode node_1 = new ASTNode(nextToken.type);
+//
+//        ASTNode node_2 = new ASTNode(nextToken.text);
+//        node_1.addChildNode(node_2);
+//
+//        treeStack.push(node_1);
 
-        ASTNode node_2 = new ASTNode(nextToken.text);
-        node_1.addChildNode(node_2);
+        BinaryTreeNode node_1 = new BinaryTreeNode(nextToken.type);
+        BinaryTreeNode node_2 = new BinaryTreeNode(nextToken.text);
 
-        treeStack.push(node_1);
+        node_1.setLeftChild(node_2);
+
+        node_1.setChildCount(1);
+        binaryTreeStack.push(node_1);
 
         getNextToken();
 
     }
 
 
+//    void constructTree(String node_label, int count){
+//        ASTNode node = new ASTNode(node_label);
+//        for(int i = 0; i < count ;i++){
+//            node.addChildAtIndex(0,treeStack.pop());
+//        }
+//        treeStack.push(node);
+//    }
+
     void constructTree(String node_label, int count){
-        ASTNode node = new ASTNode(node_label);
-        for(int i = 0; i < count ;i++){
-            node.addChildAtIndex(0,treeStack.pop());
+        BinaryTreeNode node = new BinaryTreeNode(node_label);
+        BinaryTreeNode p = null;
+
+        for(int j = 0; j < count; j++){
+            BinaryTreeNode c = binaryTreeStack.pop();
+            if(p != null){
+                c.setRightChild(p);
+            }
+            p = c;
         }
-        treeStack.push(node);
+        node.setLeftChild(p);
+        node.setChildCount(count);
+        binaryTreeStack.push(node);
+    }
+}
+
+// binary tree node to represent nodes in AST
+class BinaryTreeNode{
+
+    private String node_label;
+
+    private BinaryTreeNode left;
+
+    private BinaryTreeNode right;
+
+    private int childCount;
+
+    BinaryTreeNode(String node_label){
+        this.node_label = node_label;
     }
 
+    public void setLeftChild(BinaryTreeNode node) {
+        left = node;
+    }
+
+    public void setRightChild(BinaryTreeNode node) {
+        right = node;
+    }
+
+    public void setChildCount(int c) {
+        childCount = c;
+    }
+
+    // Pre Order Traverse with indented printing
+    public void PreOrderTraverse(int indentSize){
+        for(int i = 0 ; i < indentSize; i++ ) System.out.print(". ");
+        System.out.print(this.node_label);
+        System.out.println("("+ childCount +")");
+
+        if(this.left != null){
+            left.PreOrderTraverse(indentSize + 1);
+        }
+
+        if(this.right != null){
+            right.PreOrderTraverse(indentSize);
+        }
+    }
 }
 
 
