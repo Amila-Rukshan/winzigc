@@ -7,8 +7,6 @@
  *         test all : javac winzigc.java; java winzigc -test
  */
 
-
-
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
