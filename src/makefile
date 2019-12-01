@@ -5,7 +5,15 @@ JC = javac
 	$(JC) $(JFLAGS) $*.java
 
 CLASSES = \
-	./src/winzigc.java \
+	./winzigc.java \
+	./Lexer.java \
+	./SyntaxKind.java \
+	./SyntaxToken.java \
+	./Parser.java \
+	./ParserBottomUpTree.java \
+	./ParserTopDownTree.java \
+	./ASTNode.java \
+	./BinaryTreeNode.java \
 
 default: classes
 
