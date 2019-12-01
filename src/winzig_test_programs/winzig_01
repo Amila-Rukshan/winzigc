@@ -4,8 +4,12 @@
 		procedures
 		repeat loop
 		if statement
+		{
+		    sdf asfasfa sf
+		}
 		arithmetic
 }
+
 program factors:
 
 { const A = a, B = 456, C = 'd'; }

@@ -1,4 +1,4 @@
-
+import java.util.Stack;
 
 public class Lexer{
 
@@ -30,12 +30,22 @@ public class Lexer{
     }
 
     SyntaxToken findCommentTypeOne(){
+
+        Stack<Character> nestedCommentsTrace = new Stack<>();
+
         int start = _position;
         if(getCurrentChar() == '{'){
             _position++;
-            while(getCurrentChar() != '}'){
+            nestedCommentsTrace.push('{');
+
+            while(!nestedCommentsTrace.empty()){
+                switch(getCurrentChar()){
+                    case '{': nestedCommentsTrace.push('{'); break;
+                    case '}': nestedCommentsTrace.pop(); break;
+                }
                 _position++;
             }
+
             _position++;
             return new SyntaxToken(SyntaxKind.CommentToken, start, _text.substring(start, _position), "#COMMENT");
         }
