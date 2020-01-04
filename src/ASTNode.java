@@ -37,6 +37,7 @@ public class ASTNode{
 
     void addChildAtIndex(int index, ASTNode child){
         childNodes.add(index, child);
+        child.setParentNode(this);
     }
 
     public ASTNode getParent(){

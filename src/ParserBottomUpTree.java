@@ -13,14 +13,14 @@ public class ParserBottomUpTree extends Parser{
     SyntaxToken nextToken;
 
     boolean hasNext(){
-        return tokenIndex <= tokenStream.size()-1;
+        return tokenIndex <= tokenStream.size()-2;
     }
 
     String peek(){
         if(tokenIndex <= tokenStream.size()-1){
             return tokenStream.get(tokenIndex).type;
         }
-        System.out.println("TOKEN ARE OVER");
+        System.out.println("TOKENS ARE OVER");
         throw new Error();
     }
 
@@ -55,6 +55,10 @@ public class ParserBottomUpTree extends Parser{
         Body();
         Name();
         read(".");
+
+//        System.out.println(tokenStream.get(1));
+//        System.out.println(tokenStream.get(tokenStream.size()-2));
+
 
         // change count accordingly
         constructTree("program" ,7);
@@ -452,6 +456,8 @@ public class ParserBottomUpTree extends Parser{
             default:
                 System.out.println("ERROR PEEK: "+peek());
                 System.out.println("ERROR NEXT: "+nextToken.type);
+                System.out.println("LINE NO: " + nextToken.line);
+                System.out.println("CLMN NO: " + nextToken.column);
                 throw new Error();
         }
     }
@@ -493,6 +499,8 @@ public class ParserBottomUpTree extends Parser{
                 default:
                     System.out.println("ERROR in Expression");
                     System.out.println("TOKEN WAS: "+nextToken.type);
+                    System.out.println("LINE NO: " + nextToken.line);
+                    System.out.println("CLMN NO: " + nextToken.column);
                     throw new Error();
             }
         }
@@ -519,6 +527,8 @@ public class ParserBottomUpTree extends Parser{
                     break;
                 default:
                     System.out.println("ERROR in Term");
+                    System.out.println("LINE NO: " + nextToken.line);
+                    System.out.println("CLMN NO: " + nextToken.column);
                     throw new Error();
             }
         }
@@ -631,7 +641,10 @@ public class ParserBottomUpTree extends Parser{
                 }
                 break;
             default:
-                System.out.println("ERROR WHILE PARSING: " + nextToken.type); throw new Error();
+                System.out.println("ERROR WHILE PARSING: " + nextToken.type);
+                System.out.println("LINE NO: " + nextToken.line);
+                System.out.println("CLMN NO: " + nextToken.column);
+                throw new Error();
         }
 
     }
@@ -639,7 +652,9 @@ public class ParserBottomUpTree extends Parser{
     void read(String type){
         if(nextToken.type != type){
             System.out.println("EXPECTED: ->|"+type+"|<-");
-            System.out.println("FOUND: "+nextToken.type+" "+nextToken.text);
+            System.out.println("FOUND: " + nextToken.type + " " + nextToken.text);
+            System.out.println("LINE NO: " + nextToken.line);
+            System.out.println("CLMN NO: " + nextToken.column);
             throw new Error();
         }
 
@@ -653,6 +668,8 @@ public class ParserBottomUpTree extends Parser{
         if(nextToken.kind != kind){
             System.out.println("EXPECTED: "+kind);
             System.out.println("FOUND: "+nextToken.kind+" "+nextToken.text);
+            System.out.println("LINE NO: " + nextToken.line);
+            System.out.println("CLMN NO: " + nextToken.column);
             throw new Error();
         }
 
